@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>kobuki</name>
+  <version>1.0.0</version>
+  <description>This package contains the kobuki robot from URJC</description>
+  <maintainer email="juancarlos.serrano@urjc.es">Juan Carlos Manzanares Serrano</maintainer>
+  <license>Apache License, Version 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>kobuki_description</exec_depend>
+  <exec_depend>kobuki_ros_interfaces</exec_depend>
+  <exec_depend>navigation2</exec_depend>
+  <exec_depend>kobuki_ros</exec_depend>
+  <exec_depend>astra_camera</exec_depend>
+  <exec_depend>rplidar_ros</exec_depend>
+  <exec_depend>openni2_camera</exec_depend>
+  <exec_depend>aws_robomaker_small_warehouse_world</exec_depend>
+  <exec_depend>aws_robomaker_small_house_world</exec_depend>
+  <exec_depend>aws_robomaker_racetrack_world</exec_depend>
+  <exec_depend>aws_robomaker_bookstore_world</exec_depend>
+  <exec_depend>ecl_core</exec_depend>
+  <exec_depend>ecl_lite</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>laser_filters</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

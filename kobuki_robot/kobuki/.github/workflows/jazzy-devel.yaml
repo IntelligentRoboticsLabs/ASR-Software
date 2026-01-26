@@ -1,0 +1,54 @@
+name: jazzy-devel
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+    branches:
+      - jazzy-devel
+  push:
+    paths-ignore:
+      - 'README.md'
+    branches:
+      - jazzy-devel
+  schedule:
+    - cron: "0 0 * * 1"
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
+      fail-fast: false
+    steps:
+      - name: Repo checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libusb-1.0-0-dev libftdi1-dev libuvc-dev
+      - name: Setup ROS 2
+        uses: ros-tooling/setup-ros@0.7.5
+        with:
+          required-ros-distributions: jazzy
+      - name: build and test
+        uses: ros-tooling/action-ros-ci@0.3.13
+        with:
+          package-name: kobuki
+          target-ros2-distro: jazzy
+          vcs-repo-file-url: ${GITHUB_WORKSPACE}/thirdparty.repos
+          skip-test: true
+          colcon-defaults: |
+            {
+              "build": {
+                "packages-up-to": true
+              }
+            }
+      - name: Date Action CI
+        uses: Juancams/date-last-ci@main
+        with:
+          gist_id: 7f60a5f4c1a12cbb473210dd40b454e9
+          gist_token: ${{ secrets.GIST_TOKEN }}
+          gist_filename: date_kobuki_jazzy_devel.json
+          show_hour: false
