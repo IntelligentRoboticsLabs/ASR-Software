@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="BumpAndGo">
+  <BehaviorTree ID="BumpAndGo">
+    <!-- Raíz: Fallback para priorizar batería baja -->
+    <Fallback name="MainLoop">
+      
+      <!-- Rama 1: Si batería baja, ir a cargar -->
+      <Sequence name="BatteryManagement">
+        <IsBatteryLow threshold="0.10" />
+        <ReturnToCharger 
+          charger_x="{charger_x}" 
+          charger_y="{charger_y}" />
+      </Sequence>
+      
+      <!-- Rama 2: Bucle continuo de bump-and-go mientras batería OK -->
+      <ReactiveFallback name="BumpAndGoLoop">
+        
+        <!-- Si detecta obstáculo, maniobra de recuperación -->
+        <Sequence name="ObstacleRecovery">
+          <IsObstacleNear 
+            threshold="0.5" 
+            obstacle_distance="{obstacle_dist}" />
+          <Sequence name="RecoveryManeuver">
+            <BackUp 
+              obstacle_distance="{obstacle_dist}"
+              base_distance="0.3" />
+            <Spin 
+              obstacle_distance="{obstacle_dist}"
+              base_angle="1.57" />
+          </Sequence>
+        </Sequence>
+        
+        <!-- Si no hay obstáculo, simplemente avanzar -->
+        <MoveForward speed="0.3" />
+        
+      </ReactiveFallback>
+      
+    </Fallback>
+  </BehaviorTree>
+</root>
