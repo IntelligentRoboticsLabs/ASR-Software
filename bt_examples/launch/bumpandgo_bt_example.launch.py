@@ -38,7 +38,10 @@ def generate_launch_description():
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'charger_x': LaunchConfiguration('charger_x'),
             'charger_y': LaunchConfiguration('charger_y'),
-        }]
+        }],
+        remappings=[
+            ('/scan', '/scan_raw')
+        ]
     )
     
     battery_sim_node = Node(

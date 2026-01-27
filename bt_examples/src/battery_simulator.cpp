@@ -58,7 +58,7 @@ private:
       RCLCPP_ERROR(this->get_logger(), "🔴 Batería CRÍTICA: %.1f%%", battery_percentage_);
     }
     if (battery_percentage_ <= 0.01) {
-      RCLCPP_FATAL(this->get_logger(), "💀 Batería AGOTADA - Robot detenido");
+      RCLCPP_FATAL(this->get_logger(), "💀 Batería AGOTADA");
     }
   }
   rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub_;

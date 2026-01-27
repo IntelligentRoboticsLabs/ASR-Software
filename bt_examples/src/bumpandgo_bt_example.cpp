@@ -14,12 +14,6 @@ int main(int argc, char** argv) {
   // Factory para registrar nodos personalizados
   BT::BehaviorTreeFactory factory;
   
-  // Registrar decorador RetryNode (Timeout ya está built-in)
-  factory.registerBuilder<BT::RetryNode>(
-    "RetryNode",
-    [&](const std::string& name, const BT::NodeConfiguration& config) {
-      return std::make_unique<BT::RetryNode>(name, config);
-    });
   
   // Pasar el nodo ROS a través del blackboard
   BT::Blackboard::Ptr blackboard = BT::Blackboard::create();
@@ -54,16 +48,18 @@ int main(int argc, char** argv) {
   
   // Bucle principal: tick del árbol a 10 Hz
   rclcpp::Rate rate(10);
-  BT::NodeStatus status = BT::NodeStatus::RUNNING;
+  BT::NodeStatus status = BT::NodeStatus::IDLE;
   
-  while (rclcpp::ok() && status == BT::NodeStatus::RUNNING) {
+  while (rclcpp::ok() && status != BT::NodeStatus::FAILURE) {
+    RCLCPP_DEBUG(node->get_logger(), "Ticking the behavior tree...");
+    
     // Procesar callbacks de ROS
     rclcpp::spin_some(node);
     
     // Evaluar árbol
     status = tree.tickRoot();
-    
     rate.sleep();
+    
   }
   
   if (status == BT::NodeStatus::SUCCESS) {

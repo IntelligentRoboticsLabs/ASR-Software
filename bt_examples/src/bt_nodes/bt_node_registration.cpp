@@ -49,4 +49,11 @@ void register_bt_nodes(BT::BehaviorTreeFactory& factory, rclcpp::Node::SharedPtr
     [node](const std::string& name, const BT::NodeConfiguration& config) {
       return std::make_unique<AbortMissionAction>(name, config, node);
     });
+
+    // Registrar decorador RetryNode (Timeout ya está built-in)
+  factory.registerBuilder<BT::RetryNode>(
+    "RetryNode",
+    [&](const std::string& name, const BT::NodeConfiguration& config) {
+      return std::make_unique<BT::RetryNode>(name, config);
+    });
 }
