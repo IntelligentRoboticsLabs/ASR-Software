@@ -14,7 +14,8 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>behaviortree_cpp_v3</depend>
-  <depend>nav2_msgs</depend>
+  <build_depend>nav2_msgs</build_depend>
+  <exec_depend>nav2_msgs</exec_depend>
   <depend>tf2_ros</depend>
   <depend>ament_index_cpp</depend>
 

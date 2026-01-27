@@ -49,7 +49,7 @@ def generate_launch_description():
         executable='battery_simulator',
         name='battery_simulator',
         output='screen',
-        parameters=[{'drain_time': 60.0}],
+        parameters=[{'drain_time': 15.0}],
     )
 
     return LaunchDescription([

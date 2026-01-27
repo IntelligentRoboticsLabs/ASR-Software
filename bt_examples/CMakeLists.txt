@@ -38,6 +38,7 @@ ament_target_dependencies(bt_nodes
   geometry_msgs
   behaviortree_cpp_v3
   tf2_ros
+  nav2_msgs
 )
 
 include_directories(include/bt_examples/bt_nodes)
