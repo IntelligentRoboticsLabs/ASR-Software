@@ -4,14 +4,14 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/battery_state.hpp"
+
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/battery_state.hpp"
 #include "bt_examples/battery_simulator.hpp"
 
-class BatterySimulator : public rclcpp::Node
-{
-public:
-  BatterySimulator()
-  : Node("battery_simulator"),
-    battery_percentage_(100.0)
+  BatterySimulator::BatterySimulator()
+    : Node("battery_simulator"),
+      battery_percentage_(100.0)
   {
     this->declare_parameter<double>("drain_time", 60.0);
     drain_time_ = this->get_parameter("drain_time").as_double();
@@ -25,9 +25,12 @@ public:
     timer_ = this->create_wall_timer(
       std::chrono::milliseconds(static_cast<int>(1000.0 / publish_rate)),
       std::bind(&BatterySimulator::publish_battery_state, this));
+    charger_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+      "/robot_in_charger", 10,
+      std::bind(&BatterySimulator::charger_callback, this, std::placeholders::_1));
   }
-private:
-  void publish_battery_state()
+
+  void BatterySimulator::publish_battery_state()
   {
     battery_percentage_ -= drain_rate_;
     if (battery_percentage_ < 0.0) battery_percentage_ = 0.0;
@@ -61,18 +64,20 @@ private:
       RCLCPP_FATAL(this->get_logger(), "💀 Batería AGOTADA");
     }
   }
-  rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub_;
-  rclcpp::TimerBase::SharedPtr timer_;
-  double battery_percentage_;
-  double drain_time_;
-  double drain_rate_;
-};
 
-int main(int argc, char * argv[])
-{
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<BatterySimulator>();
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
-}
+  void BatterySimulator::charger_callback(const std_msgs::msg::Bool::SharedPtr msg)
+  {
+    if (msg->data) {
+      battery_percentage_ = 100.0;
+      RCLCPP_INFO(this->get_logger(), "Robot en cargador: batería al 100%%");
+    }
+  }
+
+  int main(int argc, char * argv[])
+  {
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<BatterySimulator>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+  }

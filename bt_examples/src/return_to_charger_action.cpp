@@ -12,6 +12,7 @@ ReturnToChargerAction::ReturnToChargerAction(const std::string& name,
     tf_listener_(tf_buffer_),
     goal_sent_(false),
     result_received_(false) {
+  robot_in_charger_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/robot_in_charger", 1);
   using namespace std::placeholders;
   action_client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(
     node_, "navigate_to_pose");
@@ -67,6 +68,9 @@ BT::NodeStatus ReturnToChargerAction::onRunning() {
   if (result_received_) {
     if (result_code_ == rclcpp_action::ResultCode::SUCCEEDED) {
       RCLCPP_INFO(node_->get_logger(), "Reached charger! Ready to recharge.");
+      std_msgs::msg::Bool msg;
+      msg.data = true;
+      robot_in_charger_pub_->publish(msg);
       return BT::NodeStatus::SUCCESS;
     } else {
       RCLCPP_ERROR(node_->get_logger(), "Failed to reach charger (NavigateToPose result: %d)", static_cast<int>(result_code_));

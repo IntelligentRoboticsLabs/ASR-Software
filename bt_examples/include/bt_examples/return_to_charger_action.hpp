@@ -1,3 +1,4 @@
+  #include <std_msgs/msg/bool.hpp>
 // bt_nodes/return_to_charger_action.hpp
 #ifndef BT_EXAMPLES__BT_NODES__RETURN_TO_CHARGER_ACTION_HPP_
 #define BT_EXAMPLES__BT_NODES__RETURN_TO_CHARGER_ACTION_HPP_
@@ -24,6 +25,7 @@ public:
 private:
   rclcpp::Node::SharedPtr node_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr robot_in_charger_pub_;
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   double charger_x_;
