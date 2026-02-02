@@ -36,10 +36,16 @@ public:
 // ============================================================================
 // ESTADOS CONCRETOS
 // ============================================================================
+// Cada estado concreto mantiene un puntero al robot (contexto) para:
+//   1. Leer sensores y tomar decisiones en check_transitions()
+//   2. Ejecutar acciones (publicar velocidades) en on_entry/on_do/on_exit
+//   3. Acceder al logger para depuración
+// Esto sigue el patrón State: los estados tienen acceso al contexto.
+// ============================================================================
 
 class IdleState : public State
 {
-  OOPFSMRobot* robot_;
+  OOPFSMRobot* robot_;  // Contexto: referencia al robot para acceder a sensores/actuadores
 
 public:
   explicit IdleState(OOPFSMRobot* r);
@@ -53,7 +59,7 @@ public:
 
 class MovingState : public State
 {
-  OOPFSMRobot* robot_;
+  OOPFSMRobot* robot_;  // Contexto: referencia al robot para acceder a sensores/actuadores
 
 public:
   explicit MovingState(OOPFSMRobot* r);
@@ -67,7 +73,7 @@ public:
 
 class StoppedState : public State
 {
-  OOPFSMRobot* robot_;
+  OOPFSMRobot* robot_;  // Contexto: referencia al robot para acceder a sensores/actuadores
   rclcpp::Time entry_time_;
 
 public:
@@ -98,6 +104,13 @@ public:
 
 // ============================================================================
 // NODO ROBOT CON FSM ORIENTADA A OBJETOS
+// ============================================================================
+// OOPFSMRobot actúa como CONTEXTO en el patrón State:
+//   - Contiene la FSM (StateMachine) que gestiona los estados
+//   - Proporciona acceso a sensores, actuadores y configuración
+//   - Los estados concretos reciben un puntero a este contexto
+//   - Los callbacks de sensores solo actualizan variables (min_distance_)
+//   - El timer llama a fsm_->step() para que la FSM tome decisiones
 // ============================================================================
 
 class OOPFSMRobot : public rclcpp::Node
