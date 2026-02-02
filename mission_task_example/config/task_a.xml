@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="TaskA">
+  <BehaviorTree ID="TaskA">
+    <!-- Task A: Simple sequence that always succeeds -->
+    <Sequence name="TaskASequence">
+      <SetBlackboard output_key="task_a_step" value="Starting" />
+      <SetBlackboard output_key="task_a_step" value="Processing" />
+      <SetBlackboard output_key="task_a_step" value="Validating" />
+      <SetBlackboard output_key="task_a_step" value="Completed" />
+      <AlwaysSuccess />
+    </Sequence>
+  </BehaviorTree>
+</root>

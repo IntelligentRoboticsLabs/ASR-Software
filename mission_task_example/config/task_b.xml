@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="TaskB">
+  <BehaviorTree ID="TaskB">
+    <!-- Task B: Sequence with fallback -->
+    <Sequence name="TaskBSequence">
+      <SetBlackboard output_key="task_b_step" value="Starting" />
+      
+      <!-- Try primary, fallback to alternative -->
+      <Fallback name="TryPrimaryAction">
+        <AlwaysSuccess name="PrimaryAction" />
+        <AlwaysSuccess name="AlternativeAction" />
+      </Fallback>
+      
+      <SetBlackboard output_key="task_b_step" value="Completed" />
+      <AlwaysSuccess />
+    </Sequence>
+  </BehaviorTree>
+</root>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="TaskC">
+  <BehaviorTree ID="TaskC">
+    <!-- Task C: Recovery task - always succeeds -->
+    <Sequence name="TaskCSequence">
+      <SetBlackboard output_key="task_c_step" value="RecoveryStart" />
+      <SetBlackboard output_key="task_c_step" value="RecoveryProcedure" />
+      <SetBlackboard output_key="task_c_step" value="ResetState" />
+      <SetBlackboard output_key="task_c_step" value="RecoveryComplete" />
+      <AlwaysSuccess />
+    </Sequence>
+  </BehaviorTree>
+</root>
