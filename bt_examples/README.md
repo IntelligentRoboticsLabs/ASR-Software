@@ -5,14 +5,37 @@ Este paquete contiene ejemplos progresivos de implementación de Behavior Trees 
 > **📌 Nota importante**: El código de estos ejemplos está alineado con los fragmentos de código que aparecen en el libro (Capítulo 8 y Práctica 5). Los patrones, comentarios y estructura siguen exactamente los presentados en el material teórico para facilitar el seguimiento en clase:
 > - **Bump-and-Go**: Práctica 5, secciones 5.3.6 y 5.3.7 (Ejemplo completo con puertos y blackboard)
 
+## � Requisitos previos
+
+Este paquete requiere la biblioteca **BehaviorTree.CPP** (rama master). Las dependencias de terceros se gestionan mediante el archivo `thirdparty.repos`.
+
+### Instalación de dependencias
+
+```bash
+# Navegar al workspace
+cd ~/UNI/docencia/repos/ASR/asr_ws
+
+# Instalar dependencias de terceros usando vcstool
+vcs import src/thirdparty < src/bt_examples/thirdparty.repos
+
+# Compilar las dependencias
+colcon build --packages-up-to behaviortree_cpp
+
+# Compilar el paquete bt_examples
+colcon build --packages-select bt_examples
+
+# Cargar el entorno
+source install/setup.bash
+```
+
+> **💡 Nota**: Si `vcstool` no está instalado, instálalo con:
+> ```bash
+> sudo apt install python3-vcstool
+> ```
+
 ## 🚀 Quick Start
 
 ```bash
-# Compilar
-cd ~/UNI/docencia/repos/ASR/asr_ws
-colcon build --packages-select bt_examples
-source install/setup.bash
-
 # Ejecutar con launch file
 ros2 launch bt_examples bumpandgo_bt_example.launch.py
 

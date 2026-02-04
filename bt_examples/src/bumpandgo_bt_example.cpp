@@ -1,8 +1,8 @@
 #include <rclcpp/rclcpp.hpp>
-#include <behaviortree_cpp_v3/bt_factory.h>
-#include <behaviortree_cpp_v3/loggers/bt_cout_logger.h>
-#include <behaviortree_cpp_v3/decorators/retry_node.h>
-#include <behaviortree_cpp_v3/decorators/timeout_node.h>
+#include <behaviortree_cpp/bt_factory.h>
+#include <behaviortree_cpp/loggers/bt_cout_logger.h>
+#include <behaviortree_cpp/decorators/retry_node.h>
+#include <behaviortree_cpp/decorators/timeout_node.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include "bt_examples/bt_node_registration.hpp"
@@ -13,11 +13,6 @@ int main(int argc, char** argv) {
   
   // Factory para registrar nodos personalizados
   BT::BehaviorTreeFactory factory;
-  
-  
-  // Pasar el nodo ROS a través del blackboard
-  BT::Blackboard::Ptr blackboard = BT::Blackboard::create();
-  blackboard->set("node", node);
   
   // Registrar nodos personalizados
   register_bt_nodes(factory, node);
@@ -36,8 +31,9 @@ int main(int argc, char** argv) {
   double charger_x = node->get_parameter("charger_x").as_double();
   double charger_y = node->get_parameter("charger_y").as_double();
   
-  tree.rootBlackboard()->set("charger_x", charger_x);
-  tree.rootBlackboard()->set("charger_y", charger_y);
+  tree.subtrees[0]->blackboard->set("charger_x", charger_x);
+  tree.subtrees[0]->blackboard->set("charger_y", charger_y);
+  tree.subtrees[0]->blackboard->set("node", node);
   
   // Logger para depuración
   BT::StdCoutLogger logger(tree);
@@ -57,7 +53,7 @@ int main(int argc, char** argv) {
     rclcpp::spin_some(node);
     
     // Evaluar árbol
-    status = tree.tickRoot();
+    status = tree.tickOnce();
     rate.sleep();
     
   }

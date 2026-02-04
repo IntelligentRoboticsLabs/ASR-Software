@@ -1,4 +1,4 @@
-#include <behaviortree_cpp_v3/bt_factory.h>
+#include <behaviortree_cpp/bt_factory.h>
 #include "bt_examples/is_obstacle_near_condition.hpp"
 #include "bt_examples/is_battery_low_condition.hpp"
 #include "bt_examples/backup_action.hpp"

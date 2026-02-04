@@ -2,7 +2,7 @@
 #ifndef BT_EXAMPLES__BT_NODES__HAS_GOAL_CONDITION_HPP_
 #define BT_EXAMPLES__BT_NODES__HAS_GOAL_CONDITION_HPP_
 
-#include <behaviortree_cpp_v3/condition_node.h>
+#include <behaviortree_cpp/condition_node.h>
 #include <rclcpp/rclcpp.hpp>
 
 class HasGoalCondition : public BT::ConditionNode {

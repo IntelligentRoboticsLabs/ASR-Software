@@ -3,7 +3,7 @@
 #ifndef BT_EXAMPLES__BT_NODES__RETURN_TO_CHARGER_ACTION_HPP_
 #define BT_EXAMPLES__BT_NODES__RETURN_TO_CHARGER_ACTION_HPP_
 
-#include <behaviortree_cpp_v3/action_node.h>
+#include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <tf2_ros/buffer.h>
