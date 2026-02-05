@@ -4,10 +4,15 @@ Este paquete contiene ejemplos progresivos de implementación de Behavior Trees 
 
 > **📌 Nota importante**: El código de estos ejemplos está alineado con los fragmentos de código que aparecen en el libro (Capítulo 8 y Práctica 5). Los patrones, comentarios y estructura siguen exactamente los presentados en el material teórico para facilitar el seguimiento en clase:
 > - **Bump-and-Go**: Práctica 5, secciones 5.3.6 y 5.3.7 (Ejemplo completo con puertos y blackboard)
+> - **Drink Order**: Ejemplo básico de HRI con TTS y ASR usando simple_hri
 
 ## � Requisitos previos
 
-Este paquete requiere la biblioteca **BehaviorTree.CPP** (rama master). Las dependencias de terceros se gestionan mediante el archivo `thirdparty.repos`.
+Este paquete requiere:
+- **BehaviorTree.CPP** (rama master)
+- **simple_hri** - Servicios de TTS y ASR para HRI
+
+Las dependencias de terceros se gestionan mediante el archivo `thirdparty.repos`.
 
 ### Instalación de dependencias
 
@@ -19,7 +24,7 @@ cd ~/UNI/docencia/repos/ASR/asr_ws
 vcs import src/thirdparty < src/bt_examples/thirdparty.repos
 
 # Compilar las dependencias
-colcon build --packages-up-to behaviortree_cpp
+colcon build --packages-up-to behaviortree_cpp simple_hri
 
 # Compilar el paquete bt_examples
 colcon build --packages-select bt_examples
@@ -35,12 +40,24 @@ source install/setup.bash
 
 ## 🚀 Quick Start
 
+### Bump-and-Go (Navegación reactiva con obstáculos)
+
 ```bash
 # Ejecutar con launch file
 ros2 launch bt_examples bumpandgo_bt_example.launch.py
 
 # Ver argumentos disponibles
 ros2 launch bt_examples bumpandgo_bt_example.launch.py --show-args
+```
+
+### Drink Order (Interacción básica HRI)
+
+```bash
+# Asegúrate de que los servicios de simple_hri estén ejecutándose
+ros2 launch simple_hri tts_listen.launch.py
+
+# En otra terminal, ejecuta el ejemplo
+ros2 launch bt_examples drink_order_bt_example.launch.py
 ```
 
 ---
@@ -79,13 +96,18 @@ bt_examples/
 │   ├── backup_action.hpp                 # Acción: retroceder
 │   ├── spin_action.hpp                   # Acción: girar
 │   ├── move_towards_goal_action.hpp      # Acción: navegar
-│   └── abort_mission_action.hpp          # Acción: abortar misión
+│   ├── abort_mission_action.hpp          # Acción: abortar misión
+│   ├── say_text_action.hpp               # Acción: TTS (HRI)
+│   └── listen_text_action.hpp            # Acción: ASR (HRI)
 ├── src/
-│   └── bumpandgo_bt_example.cpp          # Programa principal
+│   ├── bumpandgo_bt_example.cpp          # Programa principal bump-and-go
+│   └── drink_order_bt_example.cpp        # Programa principal HRI
 ├── config/
-│   └── bumpandgo_tree.xml                # Definición del árbol BT
+│   ├── bumpandgo_tree.xml                # Definición del árbol bump-and-go
+│   └── drink_order_tree.xml              # Definición del árbol HRI
 └── launch/
-    └── bumpandgo_bt_example.launch.py    # Launch file
+    ├── bumpandgo_bt_example.launch.py    # Launch file bump-and-go
+    └── drink_order_bt_example.launch.py  # Launch file HRI
 ```
 
 ### Ejemplo: Bump-and-Go
@@ -138,6 +160,101 @@ ros2 launch bt_examples bumpandgo_bt_example.launch.py
   - Gira 180° si obstáculo < 0.3m, sino 90°
   - Reintenta la navegación
 - Si falla 3 veces, aborta la misión
+
+---
+
+### Ejemplo: Drink Order (HRI Básico)
+
+**Archivo**: `drink_order_bt_example.cpp`
+
+**Descripción**: Ejemplo simple de interacción humano-robot usando Behavior Trees con capacidades de TTS (Text-To-Speech) y ASR (Automatic Speech Recognition). El robot pregunta a la persona qué quiere beber, escucha la respuesta, y repite lo que ha entendido.
+
+**Arquitectura del árbol**:
+```
+Sequence (DrinkOrderSequence)
+├─ SayText (text="¿Qué quieres beber?")
+├─ ListenText → {full_text}
+├─ ExtractInfo (interest="bebida", full_text={full_text}) → {drink_order}
+└─ SayText (text="Has dicho que quieres {drink_order}. Perfecto.")
+```
+
+**Comunicación mediante blackboard**:
+- Los textos y el interés están definidos directamente en el XML para facilitar su modificación
+- Primer `SayText` dice el texto especificado en el XML
+- `ListenText` escribe el texto completo reconocido en `full_text` (OutputPort)
+- `ExtractInfo` lee el interés ("bebida") y `full_text`, extrae la información relevante escribiéndola en `drink_order` (InputPorts → OutputPort)
+- Segundo `SayText` usa una plantilla con `{drink_order}` que se sustituye automáticamente con el valor del blackboard
+
+**Ejecución**:
+```bash
+# Terminal 1: Iniciar servicios de HRI (incluye extract)
+ros2 launch simple_hri simple_hri.launch.py
+
+# Terminal 2: Configurar API key de OpenAI
+export OPENAI_API_KEY="tu-clave-api"
+
+# Terminal 3: Ejecutar el ejemplo
+ros2 launch bt_examples drink_order_bt_example.launch.py
+```
+
+**Comportamiento observable**:
+1. El robot dice: "¿Qué quieres beber?"
+2. El robot activa el micrófono y espera que hables
+3. Dices, por ejemplo: "Quiero un café con leche, por favor"
+4. El sistema extrae la información relevante: "café con leche"
+5. El robot responde: "Has dicho que quieres café con leche. Perfecto."
+
+**Nodos HRI personalizados**:
+
+#### SayText (Acción)
+- **Puerto de entrada**: `text` (string) - Texto a decir (puede contener plantillas con {variable})
+- **Service client**: `/tts_service` (simple_hri_interfaces/srv/Speech)
+- **Lógica**: 
+  - Lee el texto del puerto de entrada
+  - Envía el texto al servicio TTS
+  - Espera a que termine de hablar (síncrono)
+  - Retorna SUCCESS cuando termina
+
+#### ListenText (Acción)
+- **Puerto de salida**: `recognized_text` (string) - Texto reconocido por ASR
+- **Service client**: `/stt_service` (std_srvs/srv/SetBool)
+- **Lógica**:
+  - Llama al servicio STT con request.data = true
+  - Espera a que el usuario hable y el sistema transcriba (síncrono, puede tardar)
+  - Recibe el texto transcrito en response.message
+  - Escribe el texto reconocido en el blackboard
+  - Retorna SUCCESS con el texto reconocido
+
+#### ExtractInfo (Acción)
+- **Puerto de entrada**: 
+  - `interest` (string) - Interés/categoría a extraer (ej: "bebida", "lugar", "persona")
+  - `full_text` (string) - Texto completo del ASR
+- **Puerto de salida**: `extracted_info` (string) - Información útil extraída
+- **Service client**: `/extract` (simple_hri_interfaces/srv/Extract)
+- **Lógica**:
+  - Recibe el interés (categoría) y el texto completo del reconocimiento de voz
+  - Llama al servicio Extract con ambos parámetros
+  - Usa IA (OpenAI GPT) para extraer solo la información relevante según el interés
+  - Escribe la información extraída en el blackboard
+  - Si no se extrae nada, usa el texto original
+  - Retorna SUCCESS con la información extraída
+
+**Por qué usar ExtractInfo:**
+En una conversación real, el usuario no dice solo "agua", sino frases como:
+- "Quiero un café con leche, por favor"
+- "Me gustaría tomar un té verde"
+- "Pues no sé, quizás agua con gas"
+
+ExtractInfo procesa estas frases complejas y extrae únicamente la información relevante según el **interest** especificado (en este caso "bebida"), haciendo la interacción más natural y robusta.
+
+**Requisitos adicionales**:
+- Paquete `simple_hri` instalado y ejecutándose
+- Micrófono y altavoces funcionales
+- Modelos de ASR/TTS configurados en simple_hri
+- **Variable de entorno `OPENAI_API_KEY` configurada** (para ExtractInfo)
+  ```bash
+  export OPENAI_API_KEY="tu-clave-api"
+  ```
 
 ---
 
@@ -212,14 +329,26 @@ Edita `config/bumpandgo_tree.xml` para:
 - ROS 2 Humble o superior
 - BehaviorTree.CPP v3
 - TF2
-- Sensor Laser (`/scan` topic)
-- Simulador o robot real con TF configurado
+- Sensor Laser (`/scan` topic) - para bump-and-go
+- simple_hri - para el ejemplo de HRI
 
-## 🐛 Troubleshooting
+### Troubleshooting
 
-**Error: "No transform map → base_link"**
+**Error: "Extract service not available"** (drink order)
 ```bash
-# Verificar que TF esté publicando
+# Verificar que el servicio extract esté ejecutándose
+ros2 service list | grep extract
+
+# Verificar variable de entorno
+echo $OPENAI_API_KEY
+
+# Iniciar servicios de HRI con extract si no están activos
+ros2 launch simple_hri simple_hri.launch.py
+```
+
+**Error: "TF transform not available"** (bump-and-go)
+```bash
+# Verificar que el transform map → base_link está disponible  
 ros2 run tf2_ros tf2_echo map base_link
 ```
 
@@ -230,9 +359,30 @@ ros2 run bt_examples bumpandgo_bt_example
 # Error esperado: "Cannot find file: ..."
 ```
 
-**No detecta obstáculos**
+**No detecta obstáculos** (bump-and-go)
 ```bash
 # Verificar que el topic scan exista
+ros2 topic list | grep scan
+ros2 topic echo /scan --once
+```
+
+**Error: "TTS/Listen action server not available"** (drink order)
+```bash
+# Verificar que simple_hri esté ejecutándose
+ros2 action list | grep -E "(say|listen)"
+
+# Iniciar servicios de HRI si no están activos
+ros2 launch simple_hri tts_listen.launch.py
+```
+
+**No se reconoce la voz** (drink order)
+```bash
+# Verificar micrófono
+arecord -l
+
+# Probar ASR directamente
+ros2 action send_goal /listen simple_hri_interfaces/action/Listen "{}"
+```
 ros2 topic echo /scan --once
 ```
 

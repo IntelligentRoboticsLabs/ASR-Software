@@ -6,6 +6,9 @@
 #include "bt_examples/move_forward_action.hpp"
 #include "bt_examples/return_to_charger_action.hpp"
 #include "bt_examples/abort_mission_action.hpp"
+#include "bt_examples/say_text_action.hpp"
+#include "bt_examples/listen_text_action.hpp"
+#include "bt_examples/extract_info_action.hpp"
 
 void register_bt_nodes(BT::BehaviorTreeFactory& factory, rclcpp::Node::SharedPtr node) {
   factory.registerBuilder<IsObstacleNearCondition>(
@@ -48,6 +51,24 @@ void register_bt_nodes(BT::BehaviorTreeFactory& factory, rclcpp::Node::SharedPtr
     "AbortMission",
     [node](const std::string& name, const BT::NodeConfiguration& config) {
       return std::make_unique<AbortMissionAction>(name, config, node);
+    });
+
+  factory.registerBuilder<SayTextAction>(
+    "SayText",
+    [node](const std::string& name, const BT::NodeConfiguration& config) {
+      return std::make_unique<SayTextAction>(name, config, node);
+    });
+
+  factory.registerBuilder<ListenTextAction>(
+    "ListenText",
+    [node](const std::string& name, const BT::NodeConfiguration& config) {
+      return std::make_unique<ListenTextAction>(name, config, node);
+    });
+
+  factory.registerBuilder<ExtractInfoAction>(
+    "ExtractInfo",
+    [node](const std::string& name, const BT::NodeConfiguration& config) {
+      return std::make_unique<ExtractInfoAction>(name, config, node);
     });
 
     // Registrar decorador RetryNode (Timeout ya está built-in)

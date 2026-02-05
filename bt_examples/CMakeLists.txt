@@ -11,13 +11,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
+find_package(simple_hri_interfaces REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -31,17 +34,23 @@ add_library(bt_nodes SHARED
   src/move_forward_action.cpp
   src/return_to_charger_action.cpp
   src/abort_mission_action.cpp
+  src/say_text_action.cpp
+  src/listen_text_action.cpp
+  src/extract_info_action.cpp
   src/bt_nodes/bt_node_registration.cpp
 )
 
 ament_target_dependencies(bt_nodes
   rclcpp
+  rclcpp_action
   std_msgs
+  std_srvs
   sensor_msgs
   geometry_msgs
   tf2_ros
   nav2_msgs
   behaviortree_cpp
+  simple_hri_interfaces
 )
 
 include_directories(include/bt_examples/bt_nodes)
@@ -56,6 +65,18 @@ ament_target_dependencies(bumpandgo_bt_example
   tf2_ros
   ament_index_cpp
   behaviortree_cpp
+)
+
+# Drink order BT example
+add_executable(drink_order_bt_example src/drink_order_bt_example.cpp)
+target_link_libraries(drink_order_bt_example bt_nodes)
+ament_target_dependencies(drink_order_bt_example
+  rclcpp
+  rclcpp_action
+  std_msgs
+  ament_index_cpp
+  behaviortree_cpp
+  simple_hri_interfaces
 )
 
 # Battery simulator node (for BT)
@@ -75,6 +96,7 @@ install(TARGETS bt_nodes
 # Install executables
 install(TARGETS
   bumpandgo_bt_example
+  drink_order_bt_example
   DESTINATION lib/${PROJECT_NAME}
 )
 

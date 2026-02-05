@@ -3,3 +3,15 @@ repositories:
     type: git
     url: https://github.com/BehaviorTree/BehaviorTree.CPP.git
     version: master
+  simple_hri:
+    type: git
+    url: https://github.com/rodperex/simple_hri.git
+    version: main
+  sound_play:
+    type: git
+    url: git@github.com:rodperex/sound_play.git
+    version: ros2
+  audio_common:
+    type: git
+    url: git@github.com:rodperex/audio_common.git
+    version: ros2

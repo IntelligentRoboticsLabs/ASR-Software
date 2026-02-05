@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4"
+      main_tree_to_execute="DrinkOrder">
+  <BehaviorTree ID="DrinkOrder">
+    <Sequence name="DrinkOrderSequence">
+      <SayText text="¿Qué quieres beber?"/>
+      <ListenText recognized_text="{order}"/>
+      <ExtractInfo interest="bebida"
+                   full_text="{order}"
+                   extracted_info="{drink_order}"/>
+      <SayText text="Has dicho que quieres {drink_order}. Perfecto."/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- Description of Node Models (used by Groot) -->
+  <TreeNodesModel>
+    <Action ID="ExtractInfo"
+            editable="true">
+      <input_port name="interest"/>
+      <input_port name="full_text"/>
+      <output_port name="extracted_info"/>
+    </Action>
+    <Action ID="ListenText"
+            editable="true">
+      <output_port name="recognized_text"/>
+    </Action>
+    <Action ID="SayText"
+            editable="true">
+      <input_port name="text"/>
+    </Action>
+  </TreeNodesModel>
+
+</root>
