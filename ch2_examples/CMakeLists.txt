@@ -33,7 +33,7 @@ add_executable(pub_sub src/pub_sub_main.cpp)
 target_link_libraries(pub_sub ${PROJECT_NAME})
 
 install(TARGETS
-   ${PROJECT_NAME}
+  ${PROJECT_NAME}
   logger
   publisher
   subscriber
