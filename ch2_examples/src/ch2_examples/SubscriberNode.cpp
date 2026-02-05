@@ -15,8 +15,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "ch2_examples/SubscriberNode.hpp"
 
-using namespace std::chrono_literals;
-
 SubscriberNode::SubscriberNode()
 : Node("subscriber_node")
 {
