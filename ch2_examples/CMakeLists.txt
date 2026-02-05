@@ -5,11 +5,6 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
-set(dependencies
-    rclcpp
-    std_msgs
-)
-
 add_library(${PROJECT_NAME}
   src/ch2_examples/LoggerNode.cpp
   src/ch2_examples/PublisherNode.cpp
