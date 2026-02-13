@@ -17,6 +17,9 @@
 
 #include <memory>
 
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -36,6 +39,9 @@ protected:
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr obstacle_pub_;
+
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
 
   float min_distance_ {0.5f};
 };

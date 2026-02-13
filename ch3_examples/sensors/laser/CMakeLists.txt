@@ -11,6 +11,11 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 include_directories(include)
 
@@ -23,7 +28,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC
   rclcpp::rclcpp
+  tf2::tf2
+  tf2_ros::tf2_ros
   ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  ${geometry_msgs_TARGETS}
+  ${tf2_geometry_msgs_TARGETS}
 )
 
 add_executable(obstacle_detector src/obstacle_detector_main.cpp)
@@ -57,5 +67,10 @@ ament_export_targets(export_${PROJECT_NAME})
 ament_export_dependencies(
   rclcpp
   sensor_msgs
+  std_msgs
+  geometry_msgs
+  tf2_geometry_msgs
+  tf2
+  tf2_ros
 )
 ament_package()

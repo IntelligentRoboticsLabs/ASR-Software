@@ -12,14 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "laser/ObstacleDetectorNode.hpp"
+
+#include "geometry_msgs/msg/point_stamped.hpp"
 
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/bool.hpp"
 
 #include "rclcpp/rclcpp.hpp"
+
+#include "tf2/exceptions.h"
+#include "tf2/time.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace laser
 {
@@ -27,7 +35,9 @@ namespace laser
 using std::placeholders::_1;
 
 ObstacleDetectorNode::ObstacleDetectorNode()
-: Node("obstacle_detector_node")
+: Node("obstacle_detector_node"),
+  tf_buffer_(this->get_clock()),
+  tf_listener_(tf_buffer_)
 {
   declare_parameter("min_distance", min_distance_);
   get_parameter("min_distance", min_distance_);
@@ -65,6 +75,32 @@ void ObstacleDetectorNode::print_obstacle_info(const sensor_msgs::msg::LaserScan
 
   if (distance_min < dist_thrld) {
     RCLCPP_WARN(get_logger(), "Obstacle detected within threshold of %f m!", dist_thrld);
+  }
+
+  // Also report the obstacle position in the robot frame (base_link) using TF.
+  // The point is initially expressed in the LaserScan frame (scan.header.frame_id).
+  try {
+    geometry_msgs::msg::PointStamped obstacle_point;
+    obstacle_point.header = scan.header;
+    obstacle_point.point.x = obstacle_x;
+    obstacle_point.point.y = obstacle_y;
+    obstacle_point.point.z = 0.0;
+
+    auto tf = tf_buffer_.lookupTransform(
+      "base_link",
+      obstacle_point.header.frame_id,
+      obstacle_point.header.stamp,
+      tf2::durationFromSec(0.1));
+
+    geometry_msgs::msg::PointStamped obstacle_point_base;
+    tf2::doTransform(obstacle_point, obstacle_point_base, tf);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Obstacle position in %s: x = %f m, y = %f m",
+      "base_link", obstacle_point_base.point.x, obstacle_point_base.point.y);
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_WARN(get_logger(), "TF transform to base_link failed: %s", ex.what());
   }
 }
 

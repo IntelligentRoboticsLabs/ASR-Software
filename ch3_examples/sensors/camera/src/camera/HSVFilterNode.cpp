@@ -127,7 +127,7 @@ HSVFilterNode::publish_detection(
 {
   if (detection_pub_->get_subscription_count() > 0) {
     vision_msgs::msg::Detection2D detection_msg;
-    detection_msg.header.frame_id = "camera_rgb_optical_frame";  // WRONG!! image->header;
+    detection_msg.header.frame_id = image->header.frame_id;
     detection_msg.header.stamp = image->header.stamp;
     detection_msg.bbox.center.position.x = point.x + bbx.width / 2;
     detection_msg.bbox.center.position.y = point.y + bbx.height / 2;
@@ -135,7 +135,7 @@ HSVFilterNode::publish_detection(
     detection_msg.bbox.size_y = bbx.height;
 
     vision_msgs::msg::Detection2DArray detection_array_msg;
-    detection_array_msg.header.frame_id = "camera_rgb_optical_frame";  // WRONG!! image->header;
+    detection_array_msg.header.frame_id = image->header.frame_id;
     detection_array_msg.header.stamp = image->header.stamp;
     detection_array_msg.detections.push_back(detection_msg);
 
