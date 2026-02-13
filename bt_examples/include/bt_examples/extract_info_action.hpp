@@ -18,8 +18,9 @@
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
 #include <simple_hri_interfaces/srv/extract.hpp>
+#include <optional>
 
-class ExtractInfoAction : public BT::SyncActionNode
+class ExtractInfoAction : public BT::StatefulActionNode
 {
 public:
   using Extract = simple_hri_interfaces::srv::Extract;
@@ -38,11 +39,17 @@ public:
     };
   }
 
-  BT::NodeStatus tick() override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
 
 private:
   rclcpp::Node::SharedPtr node_;
   rclcpp::Client<Extract>::SharedPtr extract_client_;
+  std::optional<rclcpp::Client<Extract>::FutureAndRequestId> future_;
+  std::chrono::steady_clock::time_point start_time_;
+  std::string interest_;
+  std::string full_text_;
 };
 
 #endif  // BT_EXAMPLES__EXTRACT_INFO_ACTION_HPP_

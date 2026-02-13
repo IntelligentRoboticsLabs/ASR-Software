@@ -18,8 +18,9 @@
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_srvs/srv/set_bool.hpp>
+#include <optional>
 
-class ListenTextAction : public BT::SyncActionNode
+class ListenTextAction : public BT::StatefulActionNode
 {
 public:
   using SetBool = std_srvs::srv::SetBool;
@@ -36,11 +37,15 @@ public:
     };
   }
 
-  BT::NodeStatus tick() override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
 
 private:
   rclcpp::Node::SharedPtr node_;
   rclcpp::Client<SetBool>::SharedPtr stt_client_;
+  std::optional<rclcpp::Client<SetBool>::FutureAndRequestId> future_;
+  std::chrono::steady_clock::time_point start_time_;
 };
 
 #endif  // BT_EXAMPLES__LISTEN_TEXT_ACTION_HPP_

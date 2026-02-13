@@ -18,8 +18,9 @@
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
 #include <simple_hri_interfaces/srv/speech.hpp>
+#include <optional>
 
-class SayTextAction : public BT::SyncActionNode
+class SayTextAction : public BT::StatefulActionNode
 {
 public:
   using Speech = simple_hri_interfaces::srv::Speech;
@@ -36,13 +37,17 @@ public:
     };
   }
 
-  BT::NodeStatus tick() override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
 
 private:
   std::string formatText(const std::string & text);
   
   rclcpp::Node::SharedPtr node_;
   rclcpp::Client<Speech>::SharedPtr tts_client_;
+  std::optional<rclcpp::Client<Speech>::FutureAndRequestId> future_;
+  std::chrono::steady_clock::time_point start_time_;
 };
 
 #endif  // BT_EXAMPLES__SAY_TEXT_ACTION_HPP_

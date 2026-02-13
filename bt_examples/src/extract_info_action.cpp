@@ -18,13 +18,13 @@ ExtractInfoAction::ExtractInfoAction(
   const std::string & name,
   const BT::NodeConfig & config,
   rclcpp::Node::SharedPtr node)
-: BT::SyncActionNode(name, config),
+: BT::StatefulActionNode(name, config),
   node_(node)
 {
   extract_client_ = node_->create_client<Extract>("/extract_service");
 }
 
-BT::NodeStatus ExtractInfoAction::tick()
+BT::NodeStatus ExtractInfoAction::onStart()
 {
   // Obtener el interés del puerto de entrada
   std::string interest;
@@ -40,23 +40,9 @@ BT::NodeStatus ExtractInfoAction::tick()
     return BT::NodeStatus::FAILURE;
   }
 
-  // Esperar a que el servidor de servicio esté disponible con reintentos
-  const int max_wait_attempts = 3;
-  bool service_available = false;
-  
-  for (int attempt = 1; attempt <= max_wait_attempts; ++attempt) {
-    RCLCPP_INFO(node_->get_logger(), "Waiting for Extract service... (attempt %d/%d)", attempt, max_wait_attempts);
-    if (extract_client_->wait_for_service(std::chrono::seconds(5))) {
-      service_available = true;
-      break;
-    }
-    if (attempt < max_wait_attempts) {
-      RCLCPP_WARN(node_->get_logger(), "Extract service not available yet, retrying...");
-    }
-  }
-  
-  if (!service_available) {
-    RCLCPP_ERROR(node_->get_logger(), "Extract service not available after %d attempts", max_wait_attempts);
+  // Esperar a que el servidor de servicio esté disponible
+  if (!extract_client_->wait_for_service(std::chrono::seconds(1))) {
+    RCLCPP_ERROR(node_->get_logger(), "Extract service not available");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -67,41 +53,46 @@ BT::NodeStatus ExtractInfoAction::tick()
 
   RCLCPP_INFO(node_->get_logger(), "Extracting '%s' from: '%s'", interest.c_str(), full_text.c_str());
 
-  // Llamar al servicio con reintentos
-  const int max_call_attempts = 3;
-  std::shared_ptr<Extract::Response> response;
-  bool call_successful = false;
+  // Enviar petición asíncrona
+  future_ = extract_client_->async_send_request(request);
+  start_time_ = std::chrono::steady_clock::now();
   
-  for (int attempt = 1; attempt <= max_call_attempts; ++attempt) {
-    auto future = extract_client_->async_send_request(request);
-    
-    if (rclcpp::spin_until_future_complete(node_, future, std::chrono::seconds(10)) 
-        == rclcpp::FutureReturnCode::SUCCESS)
-    {
-      response = future.get();
-      call_successful = true;
-      break;
-    } else {
-      if (attempt < max_call_attempts) {
-        RCLCPP_WARN(node_->get_logger(), "Failed to call extract service (attempt %d/%d), retrying...", 
-                    attempt, max_call_attempts);
-      }
-    }
-  }
-  
-  if (!call_successful) {
-    RCLCPP_ERROR(node_->get_logger(), "Failed to call extract service after %d attempts", max_call_attempts);
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus ExtractInfoAction::onRunning()
+{
+  // Verificar timeout (10 segundos)
+  auto elapsed = std::chrono::steady_clock::now() - start_time_;
+  if (elapsed > std::chrono::seconds(10)) {
+    RCLCPP_ERROR(node_->get_logger(), "Extract service timeout");
+    future_.reset();
     return BT::NodeStatus::FAILURE;
   }
-  
-  if (response->result.empty()) {
-    RCLCPP_WARN(node_->get_logger(), "Extract service returned empty result");
-    // Si no se extrajo nada útil, usar el texto original
-    setOutput("extracted_info", full_text);
-  } else {
+
+  // Verificar si el future está listo
+  if (future_ && future_->future.valid() && 
+      future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    auto response = future_->future.get();
+    future_.reset();
+    
+    if (response->result.empty()) {
+      RCLCPP_WARN(node_->get_logger(), "Extract service returned empty result");
+      // Si no se extrajo nada útil, marcar como fallo
+      return BT::NodeStatus::FAILURE;
+    }
+
     RCLCPP_INFO(node_->get_logger(), "Extracted: '%s'", response->result.c_str());
     setOutput("extracted_info", response->result);
+    
+    return BT::NodeStatus::SUCCESS;
   }
 
-  return BT::NodeStatus::SUCCESS;
+  return BT::NodeStatus::RUNNING;
+}
+
+void ExtractInfoAction::onHalted()
+{
+  RCLCPP_WARN(node_->get_logger(), "Extract action halted");
+  future_.reset();
 }

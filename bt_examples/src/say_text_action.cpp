@@ -19,7 +19,7 @@ SayTextAction::SayTextAction(
   const std::string & name,
   const BT::NodeConfig & config,
   rclcpp::Node::SharedPtr node)
-: BT::SyncActionNode(name, config),
+: BT::StatefulActionNode(name, config),
   node_(node)
 {
   tts_client_ = node_->create_client<Speech>("/tts_service");
@@ -77,7 +77,7 @@ std::string SayTextAction::formatText(const std::string & text)
   return formatted_text;
 }
 
-BT::NodeStatus SayTextAction::tick()
+BT::NodeStatus SayTextAction::onStart()
 {
   // Obtener el texto a decir del puerto de entrada
   std::string text;
@@ -89,23 +89,9 @@ BT::NodeStatus SayTextAction::tick()
   // Formatear el texto (expandir variables del blackboard y formatear listas)
   text = formatText(text);
 
-  // Esperar a que el servidor esté disponible con reintentos
-  const int max_wait_attempts = 3;
-  bool service_available = false;
-  
-  for (int attempt = 1; attempt <= max_wait_attempts; ++attempt) {
-    RCLCPP_INFO(node_->get_logger(), "Waiting for TTS service... (attempt %d/%d)", attempt, max_wait_attempts);
-    if (tts_client_->wait_for_service(std::chrono::seconds(5))) {
-      service_available = true;
-      break;
-    }
-    if (attempt < max_wait_attempts) {
-      RCLCPP_WARN(node_->get_logger(), "TTS service not available yet, retrying...");
-    }
-  }
-  
-  if (!service_available) {
-    RCLCPP_ERROR(node_->get_logger(), "TTS service not available after %d attempts", max_wait_attempts);
+  // Esperar a que el servidor esté disponible
+  if (!tts_client_->wait_for_service(std::chrono::seconds(1))) {
+    RCLCPP_ERROR(node_->get_logger(), "TTS service not available");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -115,38 +101,43 @@ BT::NodeStatus SayTextAction::tick()
 
   RCLCPP_INFO(node_->get_logger(), "Saying: '%s'", text.c_str());
 
-  // Llamar al servicio con reintentos
-  const int max_call_attempts = 3;
-  std::shared_ptr<Speech::Response> response;
-  bool call_successful = false;
+  // Enviar petición asíncrona
+  future_ = tts_client_->async_send_request(request);
+  start_time_ = std::chrono::steady_clock::now();
   
-  for (int attempt = 1; attempt <= max_call_attempts; ++attempt) {
-    auto future = tts_client_->async_send_request(request);
-    
-    if (rclcpp::spin_until_future_complete(node_, future, std::chrono::seconds(30)) 
-        == rclcpp::FutureReturnCode::SUCCESS)
-    {
-      response = future.get();
-      call_successful = true;
-      break;
-    } else {
-      if (attempt < max_call_attempts) {
-        RCLCPP_WARN(node_->get_logger(), "Failed to call TTS service (attempt %d/%d), retrying...", 
-                    attempt, max_call_attempts);
-      }
-    }
-  }
-  
-  if (!call_successful) {
-    RCLCPP_ERROR(node_->get_logger(), "Failed to call TTS service after %d attempts", max_call_attempts);
-    return BT::NodeStatus::FAILURE;
-  }
-  
-  if (!response->success) {
-    RCLCPP_ERROR(node_->get_logger(), "TTS service failed: %s", response->debug.c_str());
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus SayTextAction::onRunning()
+{
+  // Verificar timeout (30 segundos)
+  auto elapsed = std::chrono::steady_clock::now() - start_time_;
+  if (elapsed > std::chrono::seconds(30)) {
+    RCLCPP_ERROR(node_->get_logger(), "TTS service timeout");
+    future_.reset();
     return BT::NodeStatus::FAILURE;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "TTS completed successfully");
-  return BT::NodeStatus::SUCCESS;
+  // Verificar si el future está listo
+  if (future_ && future_->future.valid() && 
+      future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    auto response = future_->future.get();
+    future_.reset();
+    
+    if (!response->success) {
+      RCLCPP_ERROR(node_->get_logger(), "TTS service failed: %s", response->debug.c_str());
+      return BT::NodeStatus::FAILURE;
+    }
+
+    RCLCPP_INFO(node_->get_logger(), "TTS completed successfully");
+    return BT::NodeStatus::SUCCESS;
+  }
+
+  return BT::NodeStatus::RUNNING;
+}
+
+void SayTextAction::onHalted()
+{
+  RCLCPP_WARN(node_->get_logger(), "TTS action halted");
+  future_.reset();
 }
