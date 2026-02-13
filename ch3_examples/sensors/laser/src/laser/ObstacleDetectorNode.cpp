@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 
 #include "laser/ObstacleDetectorNode.hpp"
@@ -54,19 +55,59 @@ ObstacleDetectorNode::ObstacleDetectorNode()
 bool
 ObstacleDetectorNode::is_obstacle(const sensor_msgs::msg::LaserScan & scan, float dist_thrld)
 {
-  std::cerr << "Checking for obstacles within " << dist_thrld << " m..." << std::endl;
-  int min_idx = std::min_element(scan.ranges.begin(), scan.ranges.end()) - scan.ranges.begin();
-  float distance_min = scan.ranges[min_idx];
+  RCLCPP_DEBUG(get_logger(), "Checking for obstacles within %f m...", dist_thrld);
+
+  float distance_min = std::numeric_limits<float>::infinity();
+  for (size_t i = 0; i < scan.ranges.size(); ++i) {
+    const float range = scan.ranges[i];
+    if (!std::isfinite(range)) {
+      continue;
+    }
+    if (range < scan.range_min || range > scan.range_max) {
+      continue;
+    }
+    distance_min = std::min(distance_min, range);
+  }
+
+  if (!std::isfinite(distance_min)) {
+    return false;
+  }
 
   return distance_min < dist_thrld;
 }
 
 void ObstacleDetectorNode::print_obstacle_info(const sensor_msgs::msg::LaserScan & scan, float dist_thrld)
 {
-  int min_idx = std::min_element(scan.ranges.begin(), scan.ranges.end()) - scan.ranges.begin();
-  float distance_min = scan.ranges[min_idx];
+  if (scan.ranges.empty()) {
+    RCLCPP_WARN(get_logger(), "Received empty LaserScan ranges");
+    return;
+  }
 
-  float obstacle_angle = scan.angle_min + min_idx * scan.angle_increment;
+  size_t min_idx = 0;
+  float distance_min = std::numeric_limits<float>::infinity();
+  bool found_valid = false;
+  for (size_t i = 0; i < scan.ranges.size(); ++i) {
+    const float range = scan.ranges[i];
+    if (!std::isfinite(range)) {
+      continue;
+    }
+    if (range < scan.range_min || range > scan.range_max) {
+      continue;
+    }
+
+    if (range < distance_min) {
+      distance_min = range;
+      min_idx = i;
+      found_valid = true;
+    }
+  }
+
+  if (!found_valid) {
+    RCLCPP_WARN(get_logger(), "No valid LaserScan ranges (all inf/nan/out-of-range)");
+    return;
+  }
+
+  float obstacle_angle = scan.angle_min + static_cast<float>(min_idx) * scan.angle_increment;
   RCLCPP_INFO(get_logger(), "Min distance: %f m at angle %f deg", distance_min, obstacle_angle * 180.0f / M_PI);
 
   float obstacle_x = distance_min * std::cos(obstacle_angle);
@@ -97,8 +138,11 @@ void ObstacleDetectorNode::print_obstacle_info(const sensor_msgs::msg::LaserScan
 
     RCLCPP_INFO(
       get_logger(),
-      "Obstacle position in %s: x = %f m, y = %f m",
-      "base_link", obstacle_point_base.point.x, obstacle_point_base.point.y);
+      "Obstacle position in %s: x = %f m, y = %f m, z = %f m",
+      "base_link",
+      obstacle_point_base.point.x,
+      obstacle_point_base.point.y,
+      obstacle_point_base.point.z);
   } catch (const tf2::TransformException & ex) {
     RCLCPP_WARN(get_logger(), "TF transform to base_link failed: %s", ex.what());
   }
