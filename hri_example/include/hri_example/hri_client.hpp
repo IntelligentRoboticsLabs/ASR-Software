@@ -16,6 +16,7 @@
 #define HRI_EXAMPLE__HRI_CLIENT_HPP_
 
 #include <chrono>
+#include <optional>
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -37,7 +38,7 @@ public:
   void start_listen();
   
   // Verificar si terminó de escuchar
-  bool is_listen_done() const;
+  bool is_listen_done();
   
   // Obtener texto transcrito
   std::string get_listened_text() const;
@@ -46,7 +47,7 @@ public:
   void start_speaking(const std::string & text);
   
   // Verificar si terminó de hablar
-  bool is_speaking_done() const;
+  bool is_speaking_done();
   
   // Obtener resultado de TTS (true si exitoso)
   bool get_speaking_result() const;
@@ -55,7 +56,7 @@ public:
   void start_extract(const std::string & interest, const std::string & text = "");
   
   // Verificar si la extracción está lista
-  bool is_extract_done() const;
+  bool is_extract_done();
   
   // Obtener información extraída
   std::string get_extracted_info() const;
@@ -64,7 +65,7 @@ public:
   void start_yesno(const std::string & text = "");
   
   // Verificar si la detección está lista
-  bool is_yesno_done() const;
+  bool is_yesno_done();
   
   // Obtener resultado yes/no
   std::string get_yesno_result() const;
@@ -111,10 +112,10 @@ private:
   std::string yesno_result_;
   
   // Futures para operaciones asíncronas
-  std::shared_future<std_srvs::srv::SetBool::Response::SharedPtr> stt_future_;
-  std::shared_future<simple_hri_interfaces::srv::Speech::Response::SharedPtr> tts_future_;
-  std::shared_future<simple_hri_interfaces::srv::Extract::Response::SharedPtr> extract_future_;
-  std::shared_future<simple_hri_interfaces::srv::YesNo::Response::SharedPtr> yesno_future_;
+  std::optional<rclcpp::Client<std_srvs::srv::SetBool>::FutureAndRequestId> stt_future_;
+  std::optional<rclcpp::Client<simple_hri_interfaces::srv::Speech>::FutureAndRequestId> tts_future_;
+  std::optional<rclcpp::Client<simple_hri_interfaces::srv::Extract>::FutureAndRequestId> extract_future_;
+  std::optional<rclcpp::Client<simple_hri_interfaces::srv::YesNo>::FutureAndRequestId> yesno_future_;
 };
 
 #endif  // HRI_EXAMPLE__HRI_CLIENT_HPP_

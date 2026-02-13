@@ -198,6 +198,7 @@ void SimpleHRIApp::control_cycle()
           }
         }
       }
+      break;
 
     case State::DONE:
       {
