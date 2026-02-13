@@ -32,6 +32,7 @@ public:
 protected:
   void laser_callback(const sensor_msgs::msg::LaserScan::ConstSharedPtr & scan);
   bool is_obstacle(const sensor_msgs::msg::LaserScan & scan, float dist_thrld);
+  void print_obstacle_info(const sensor_msgs::msg::LaserScan & scan, float dist_thrld);
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr obstacle_pub_;

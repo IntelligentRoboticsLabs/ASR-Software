@@ -29,7 +29,7 @@ def generate_launch_description():
                         output='screen',
                         parameters=[param_file],
                         remappings=[
-                          ('input_scan', '/scan')
+                          ('input_scan', '/scan_raw')
                         ])
 
     ld = LaunchDescription()

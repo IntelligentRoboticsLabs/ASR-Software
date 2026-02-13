@@ -35,7 +35,7 @@ ObstacleDetectorNode::ObstacleDetectorNode()
   RCLCPP_INFO(get_logger(), "ObstacleDetectorNode set to %f m", min_distance_);
 
   laser_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
-    "input_laser", rclcpp::SensorDataQoS().reliable(),
+    "input_scan", rclcpp::SensorDataQoS().reliable(),
     std::bind(&ObstacleDetectorNode::laser_callback, this, _1));
   obstacle_pub_ = create_publisher<std_msgs::msg::Bool>(
     "obstacle", 100);
@@ -44,10 +44,28 @@ ObstacleDetectorNode::ObstacleDetectorNode()
 bool
 ObstacleDetectorNode::is_obstacle(const sensor_msgs::msg::LaserScan & scan, float dist_thrld)
 {
+  std::cerr << "Checking for obstacles within " << dist_thrld << " m..." << std::endl;
   int min_idx = std::min_element(scan.ranges.begin(), scan.ranges.end()) - scan.ranges.begin();
   float distance_min = scan.ranges[min_idx];
 
   return distance_min < dist_thrld;
+}
+
+void ObstacleDetectorNode::print_obstacle_info(const sensor_msgs::msg::LaserScan & scan, float dist_thrld)
+{
+  int min_idx = std::min_element(scan.ranges.begin(), scan.ranges.end()) - scan.ranges.begin();
+  float distance_min = scan.ranges[min_idx];
+
+  float obstacle_angle = scan.angle_min + min_idx * scan.angle_increment;
+  RCLCPP_INFO(get_logger(), "Min distance: %f m at angle %f deg", distance_min, obstacle_angle * 180.0f / M_PI);
+
+  float obstacle_x = distance_min * std::cos(obstacle_angle);
+  float obstacle_y = distance_min * std::sin(obstacle_angle);
+  RCLCPP_INFO(get_logger(), "Obstacle position: x = %f m, y = %f m", obstacle_x, obstacle_y);
+
+  if (distance_min < dist_thrld) {
+    RCLCPP_WARN(get_logger(), "Obstacle detected within threshold of %f m!", dist_thrld);
+  }
 }
 
 void
@@ -55,6 +73,11 @@ ObstacleDetectorNode::laser_callback(const sensor_msgs::msg::LaserScan::ConstSha
 {
   std_msgs::msg::Bool obstacle_msg;
   obstacle_msg.data = is_obstacle(*scan, min_distance_);
+
+  if (obstacle_msg.data) {
+    print_obstacle_info(*scan, min_distance_);
+  }
+
   obstacle_pub_->publish(obstacle_msg);
 }
 
