@@ -85,20 +85,25 @@ bool HRIClient::is_listen_done() const
            stt_state_ == OperationState::ERROR;
   }
   
-  // Verificar si el future está listo
-  if (stt_future_.valid() && 
-      stt_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-    // Procesar resultado
-    auto response = stt_future_.get();
-    if (response->success) {
-      const_cast<HRIClient*>(this)->stt_text_ = response->message;
-      const_cast<HRIClient*>(this)->stt_state_ = OperationState::COMPLETED;
-      RCLCPP_INFO(get_logger(), "STT completado: '%s'", stt_text_.c_str());
-    } else {
-      const_cast<HRIClient*>(this)->stt_state_ = OperationState::ERROR;
-      RCLCPP_WARN(get_logger(), "STT falló: %s", response->message.c_str());
+  // Verificar si el future está listo usando spin_until_future_complete
+  if (stt_future_.valid()) {
+    auto node_ptr = const_cast<HRIClient*>(this)->shared_from_this();
+    auto result = rclcpp::spin_until_future_complete(
+      node_ptr, stt_future_, std::chrono::milliseconds(0));
+    
+    if (result == rclcpp::FutureReturnCode::SUCCESS) {
+      // Procesar resultado
+      auto response = stt_future_.get();
+      if (response->success) {
+        const_cast<HRIClient*>(this)->stt_text_ = response->message;
+        const_cast<HRIClient*>(this)->stt_state_ = OperationState::COMPLETED;
+        RCLCPP_INFO(get_logger(), "STT completado: '%s'", stt_text_.c_str());
+      } else {
+        const_cast<HRIClient*>(this)->stt_state_ = OperationState::ERROR;
+        RCLCPP_WARN(get_logger(), "STT falló: %s", response->message.c_str());
+      }
+      return true;
     }
-    return true;
   }
   
   return false;
@@ -135,20 +140,25 @@ bool HRIClient::is_speaking_done() const
     return tts_state_ == OperationState::COMPLETED;
   }
   
-  // Primero verificar si el servicio ha respondido
+  // Primero verificar si el servicio ha respondido usando spin_until_future_complete
   bool service_responded = false;
-  if (tts_future_.valid() && 
-      tts_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-    auto response = tts_future_.get();
-    if (!response->success) {
-      // Si el servicio falló, marcar como error inmediatamente
-      const_cast<HRIClient*>(this)->tts_result_ = false;
-      const_cast<HRIClient*>(this)->tts_state_ = OperationState::ERROR;
-      RCLCPP_ERROR(get_logger(), "TTS falló");
-      return true;
+  if (tts_future_.valid()) {
+    auto node_ptr = const_cast<HRIClient*>(this)->shared_from_this();
+    auto result = rclcpp::spin_until_future_complete(
+      node_ptr, tts_future_, std::chrono::milliseconds(0));
+    
+    if (result == rclcpp::FutureReturnCode::SUCCESS) {
+      auto response = tts_future_.get();
+      if (!response->success) {
+        // Si el servicio falló, marcar como error inmediatamente
+        const_cast<HRIClient*>(this)->tts_result_ = false;
+        const_cast<HRIClient*>(this)->tts_state_ = OperationState::ERROR;
+        RCLCPP_ERROR(get_logger(), "TTS falló");
+        return true;
+      }
+      const_cast<HRIClient*>(this)->tts_result_ = true;
+      service_responded = true;
     }
-    const_cast<HRIClient*>(this)->tts_result_ = true;
-    service_responded = true;
   }
   
   // Verificar si ha pasado el tiempo estimado de habla
@@ -195,21 +205,26 @@ bool HRIClient::is_extract_done() const
            extract_state_ == OperationState::ERROR;
   }
   
-  // Verificar si el future está listo
-  if (extract_future_.valid() && 
-      extract_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-    // Procesar resultado
-    auto response = extract_future_.get();
-    const_cast<HRIClient*>(this)->extracted_info_ = response->result;
+  // Verificar si el future está listo usando spin_until_future_complete
+  if (extract_future_.valid()) {
+    auto node_ptr = const_cast<HRIClient*>(this)->shared_from_this();
+    auto result = rclcpp::spin_until_future_complete(
+      node_ptr, extract_future_, std::chrono::milliseconds(0));
     
-    if (!response->result.empty()) {
-      const_cast<HRIClient*>(this)->extract_state_ = OperationState::COMPLETED;
-      RCLCPP_INFO(get_logger(), "Extracción completada: %s", extracted_info_.c_str());
-    } else {
-      const_cast<HRIClient*>(this)->extract_state_ = OperationState::ERROR;
-      RCLCPP_WARN(get_logger(), "Extracción no pudo obtener información");
+    if (result == rclcpp::FutureReturnCode::SUCCESS) {
+      // Procesar resultado
+      auto response = extract_future_.get();
+      const_cast<HRIClient*>(this)->extracted_info_ = response->result;
+      
+      if (!response->result.empty()) {
+        const_cast<HRIClient*>(this)->extract_state_ = OperationState::COMPLETED;
+        RCLCPP_INFO(get_logger(), "Extracción completada: %s", extracted_info_.c_str());
+      } else {
+        const_cast<HRIClient*>(this)->extract_state_ = OperationState::ERROR;
+        RCLCPP_WARN(get_logger(), "Extracción no pudo obtener información");
+      }
+      return true;
     }
-    return true;
   }
   
   return false;
@@ -243,22 +258,27 @@ bool HRIClient::is_yesno_done() const
            yesno_state_ == OperationState::ERROR;
   }
   
-  // Verificar si el future está listo
-  if (yesno_future_.valid() && 
-      yesno_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-    // Procesar resultado
-    auto response = yesno_future_.get();
-    const_cast<HRIClient*>(this)->yesno_result_ = response->result;
-    std::string answer_lower = response->result;
-    std::transform(answer_lower.begin(), answer_lower.end(), answer_lower.begin(), ::tolower);
-    if (answer_lower == "yes" || answer_lower == "no") {
-      const_cast<HRIClient*>(this)->yesno_state_ = OperationState::COMPLETED;
-      RCLCPP_INFO(get_logger(), "YesNo completado: %s", response->result.c_str());
-    } else {
-      const_cast<HRIClient*>(this)->yesno_state_ = OperationState::ERROR;
-      RCLCPP_WARN(get_logger(), "YesNo no pudo obtener respuesta válida: %s", response->result.c_str());
+  // Verificar si el future está listo usando spin_until_future_complete
+  if (yesno_future_.valid()) {
+    auto node_ptr = const_cast<HRIClient*>(this)->shared_from_this();
+    auto result = rclcpp::spin_until_future_complete(
+      node_ptr, yesno_future_, std::chrono::milliseconds(0));
+    
+    if (result == rclcpp::FutureReturnCode::SUCCESS) {
+      // Procesar resultado
+      auto response = yesno_future_.get();
+      const_cast<HRIClient*>(this)->yesno_result_ = response->result;
+      std::string answer_lower = response->result;
+      std::transform(answer_lower.begin(), answer_lower.end(), answer_lower.begin(), ::tolower);
+      if (answer_lower == "yes" || answer_lower == "no") {
+        const_cast<HRIClient*>(this)->yesno_state_ = OperationState::COMPLETED;
+        RCLCPP_INFO(get_logger(), "YesNo completado: %s", response->result.c_str());
+      } else {
+        const_cast<HRIClient*>(this)->yesno_state_ = OperationState::ERROR;
+        RCLCPP_WARN(get_logger(), "YesNo no pudo obtener respuesta válida: %s", response->result.c_str());
+      }
+      return true;
     }
-    return true;
   }
   
   return false;
