@@ -15,6 +15,7 @@
 #ifndef HRI_EXAMPLE__SIMPLE_HRI_APP_HPP_
 #define HRI_EXAMPLE__SIMPLE_HRI_APP_HPP_
 
+#include <mutex>
 #include "rclcpp/rclcpp.hpp"
 #include "hri_example/hri_client.hpp"
 
@@ -36,16 +37,23 @@ private:
   enum class State {
     WAITING_FOR_SERVICES,
     GREETING,
-    ASKING_NAME,
-    EXTRACTING_NAME,
+    LISTENING_NAME,
+    LISTENING_CONFIRMATION,
+    EXTRACTING,
+    REPEATING,
     CONFIRMING,
-    CHECKING_CONFIRMATION,
-    FAREWELL,
+    BYE_SUCCESS,
+    BYE_FAILURE,
     DONE
   };
   
   State current_state_ = State::WAITING_FOR_SERVICES;
-  std::string user_name_;
+  std::string user_name_, yes_no_;
+  std::string listened_text_;
+  bool on_duty_ = false;
+  
+  // Mutex para prevenir ejecuciones concurrentes
+  std::mutex control_mutex_;
 };
 
 #endif  // HRI_EXAMPLE__SIMPLE_HRI_APP_HPP_

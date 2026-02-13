@@ -30,6 +30,8 @@ SimpleHRIApp::SimpleHRIApp()
 
 void SimpleHRIApp::control_cycle()
 {
+
+  
   switch (current_state_) {
     case State::WAITING_FOR_SERVICES:
       {
@@ -39,90 +41,163 @@ void SimpleHRIApp::control_cycle()
         }
       }
       break;
-
+    
     case State::GREETING:
       {
-        RCLCPP_INFO(get_logger(), "Saludando al usuario...");
-        if (hri_client_->call_tts_service("Hola, ¿cómo te llamas?")) {
-          current_state_ = State::ASKING_NAME;
+        if (!on_duty_) {
+          hri_client_->start_speaking("Hola, ¿cómo te llamas?");
+          on_duty_ = true;
         } else {
-          RCLCPP_ERROR(get_logger(), "Error en saludo");
-          current_state_ = State::DONE;
+          if (hri_client_->is_speaking_done()) {
+            if (hri_client_->get_speaking_result()) {
+              RCLCPP_INFO(get_logger(), "Saludo completado");
+              on_duty_ = false;
+              current_state_ = State::LISTENING_NAME;
+            } else {
+              RCLCPP_ERROR(get_logger(), "Error en saludo");
+              current_state_ = State::DONE;
+            }
+          }
+        }        
+      }
+      break;
+
+    case State::LISTENING_NAME:
+      {
+        if (!on_duty_) {
+          RCLCPP_INFO(get_logger(), "Iniciando escucha...");
+          hri_client_->start_listen();
+          on_duty_ = true;
+        } else {
+          RCLCPP_INFO(get_logger(), "Escuchando...");
+          if (hri_client_->is_listen_done()) {
+            listened_text_ = hri_client_->get_listened_text();
+            RCLCPP_INFO(get_logger(), "Texto escuchado: '%s'", listened_text_.c_str());
+            on_duty_ = false;
+            current_state_ = State::EXTRACTING;
+          }
+        }
+      }
+      break;
+    
+    case State::EXTRACTING:
+      {
+        if (!on_duty_) {
+          RCLCPP_INFO(get_logger(), "Iniciando extracción de nombre del texto: '%s'", listened_text_.c_str());
+          hri_client_->start_extract("nombre de la persona", listened_text_);
+          on_duty_ = true;
+        } else {
+          RCLCPP_INFO(get_logger(), "Extrayendo información...");
+          if (hri_client_->is_extract_done()) {
+            user_name_ = hri_client_->get_extracted_info();
+            if (!user_name_.empty()) {
+              RCLCPP_INFO(get_logger(), "Nombre extraído: %s", user_name_.c_str());
+              current_state_ = State::REPEATING;
+            } else {
+              RCLCPP_ERROR(get_logger(), "Error extrayendo nombre");
+              current_state_ = State::DONE;
+            }
+            on_duty_ = false;
+          }
         }
       }
       break;
 
-    case State::ASKING_NAME:
+    case State::REPEATING:
       {
-        RCLCPP_INFO(get_logger(), "Esperando nombre...");
-        // Pasar directo a extraer (el servicio ya pedirá el audio)
-        current_state_ = State::EXTRACTING_NAME;
+        if (!on_duty_) {
+          RCLCPP_INFO(get_logger(), "Repetiendo nombre para confirmación...");
+          std::string confirm_text = "Entonces, ¿tu nombre es " + user_name_ + "?";
+          hri_client_->start_speaking(confirm_text);
+          on_duty_ = true;
+        } else {
+          if (hri_client_->is_speaking_done()) {
+            if (hri_client_->get_speaking_result()) {
+              RCLCPP_INFO(get_logger(), "Pregunta de confirmación completada");
+              current_state_ = State::LISTENING_CONFIRMATION;
+            } else {
+              RCLCPP_ERROR(get_logger(), "Error en confirmación");
+              current_state_ = State::DONE;
+            }
+            on_duty_ = false;
+          }
+        }
       }
       break;
 
-    case State::EXTRACTING_NAME:
-      {
-        RCLCPP_INFO(get_logger(), "Extrayendo nombre del usuario...");
-        if (hri_client_->call_extract_service("person's name", user_name_)) {
-          RCLCPP_INFO(get_logger(), "Nombre extraído: %s", user_name_.c_str());
-          current_state_ = State::CONFIRMING;
+    case State::LISTENING_CONFIRMATION:
+       {
+        if (!on_duty_) {
+          RCLCPP_INFO(get_logger(), "Escuchando confirmación...");
+          hri_client_->start_listen();
+          on_duty_ = true;
         } else {
-          RCLCPP_ERROR(get_logger(), "Error extrayendo nombre");
-          current_state_ = State::DONE;
+          RCLCPP_INFO(get_logger(), "Escuchando...");
+          if (hri_client_->is_listen_done()) {
+            listened_text_ = hri_client_->get_listened_text();
+            RCLCPP_INFO(get_logger(), "Texto escuchado para confirmación: '%s'", listened_text_.c_str());
+            on_duty_ = false;
+            current_state_ = State::CONFIRMING;
+          }
         }
       }
       break;
 
     case State::CONFIRMING:
       {
-        std::string confirmation_msg = "Encantado de conocerte, " + user_name_ + 
-                                       ". ¿He entendido bien tu nombre?";
-        RCLCPP_INFO(get_logger(), "Confirmando nombre...");
-        
-        if (hri_client_->call_tts_service(confirmation_msg)) {
-          current_state_ = State::CHECKING_CONFIRMATION;
+        if (!on_duty_) {
+          RCLCPP_INFO(get_logger(), "Esperando confirmación del usuario...");
+          hri_client_->start_yesno(listened_text_);
+          on_duty_ = true;
         } else {
-          RCLCPP_ERROR(get_logger(), "Error en confirmación");
-          current_state_ = State::DONE;
-        }
-      }
-      break;
-
-    case State::CHECKING_CONFIRMATION:
-      {
-        RCLCPP_INFO(get_logger(), "Esperando confirmación...");
-        bool confirmed = false;
-        
-        if (hri_client_->call_yesno_service(confirmed)) {
-          if (confirmed) {
-            RCLCPP_INFO(get_logger(), "Usuario confirmó el nombre");
-            current_state_ = State::FAREWELL;
+          if (hri_client_->is_yesno_done()) {
+            yes_no_ = hri_client_->get_yesno_result();
+            RCLCPP_INFO(get_logger(), "Resultado de confirmación: '%s'", yes_no_.c_str());
+            if (yes_no_ == "YES") {
+              RCLCPP_INFO(get_logger(), "Usuario confirmó que su nombre es %s", user_name_.c_str());
+              current_state_ = State::BYE_SUCCESS;
+            } else {
+              RCLCPP_INFO(get_logger(), "Usuario negó que su nombre sea %s", user_name_.c_str());
+              current_state_ = State::BYE_FAILURE;
+            }
+            on_duty_ = false;
           } else {
-            RCLCPP_INFO(get_logger(), "Usuario rechazó el nombre, pidiendo de nuevo...");
-            current_state_ = State::ASKING_NAME;
+            RCLCPP_INFO(get_logger(), "Esperando respuesta de confirmación...");
           }
-        } else {
-          RCLCPP_ERROR(get_logger(), "Error verificando confirmación");
-          current_state_ = State::DONE;
         }
       }
       break;
 
-    case State::FAREWELL:
+    case State::BYE_SUCCESS:
       {
-        std::string farewell_msg = "¡Genial! Ha sido un placer hablar contigo, " + user_name_ + 
-                                   ". ¡Que tengas un día maravilloso!";
-        RCLCPP_INFO(get_logger(), "Despidiéndose...");
-        
-        if (hri_client_->call_tts_service(farewell_msg)) {
-          RCLCPP_INFO(get_logger(), "Conversación completada exitosamente");
+        if (!on_duty_) {
+          std::string bye_text = "Encantado de conocerte, " + user_name_ + ". ¡Adiós!";
+          hri_client_->start_speaking(bye_text);
+          on_duty_ = true;
         } else {
-          RCLCPP_ERROR(get_logger(), "Error en despedida");
+          if (hri_client_->is_speaking_done()) {
+            RCLCPP_INFO(get_logger(), "Despedida completada");
+            current_state_ = State::DONE;
+            on_duty_ = false;
+          }
         }
-        
-        current_state_ = State::DONE;
       }
       break;
+    
+    case State::BYE_FAILURE:
+      {
+        if (!on_duty_) {
+          std::string bye_text = "Lo siento, no pude confirmar tu nombre. ¡Adiós!";
+          hri_client_->start_speaking(bye_text);
+          on_duty_ = true;
+        } else {
+          if (hri_client_->is_speaking_done()) {
+            RCLCPP_INFO(get_logger(), "Despedida por fallo completada");
+            current_state_ = State::DONE;
+            on_duty_ = false;
+          }
+        }
+      }
 
     case State::DONE:
       {

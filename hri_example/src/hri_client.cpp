@@ -21,7 +21,7 @@ HRIClient::HRIClient()
   stt_client_ = create_client<std_srvs::srv::SetBool>("/stt_service");
   tts_client_ = create_client<simple_hri_interfaces::srv::Speech>("/tts_service");
   extract_client_ = create_client<simple_hri_interfaces::srv::Extract>("/extract_service");
-  yesno_client_ = create_client<std_srvs::srv::SetBool>("/yesno_service");
+  yesno_client_ = create_client<simple_hri_interfaces::srv::YesNo>("/yesno_service");
 
   // Suscribirse al topic de texto escuchado
   listened_text_sub_ = create_subscription<std_msgs::msg::String>(
@@ -63,124 +63,210 @@ bool HRIClient::wait_for_services(std::chrono::seconds timeout)
   return all_ready;
 }
 
-bool HRIClient::call_stt_service(std::string & transcribed_text)
+// ============ IMPLEMENTACIÓN MÉTODOS ASÍNCRONOS ============
+
+void HRIClient::start_listen()
 {
   auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
   request->data = true;
-
-  RCLCPP_DEBUG(get_logger(), "Llamando al servicio STT...");
-
-  auto future = stt_client_->async_send_request(request);
-
-  // Esperar la respuesta (bloqueante)
-  if (rclcpp::spin_until_future_complete(
-    this->get_node_base_interface(), future) == rclcpp::FutureReturnCode::SUCCESS)
-  {
-    auto response = future.get();
-    if (response->success) {
-      transcribed_text = response->message;
-      RCLCPP_DEBUG(get_logger(), "STT exitoso: %s", transcribed_text.c_str());
-      return true;
-    } else {
-      RCLCPP_WARN(get_logger(), "STT falló: %s", response->message.c_str());
-      return false;
-    }
-  } else {
-    RCLCPP_ERROR(get_logger(), "Error al llamar al servicio STT");
-    return false;
-  }
+  
+  RCLCPP_INFO(get_logger(), "Iniciando escucha (STT)...");
+  
+  stt_state_ = OperationState::IN_PROGRESS;
+  stt_text_.clear();
+  stt_future_ = stt_client_->async_send_request(request);
 }
 
-bool HRIClient::call_tts_service(const std::string & text)
+bool HRIClient::is_listen_done() const
+{
+  if (stt_state_ != OperationState::IN_PROGRESS) {
+    // Devolver true si está completado O en error (ya terminó)
+    return stt_state_ == OperationState::COMPLETED || 
+           stt_state_ == OperationState::ERROR;
+  }
+  
+  // Verificar si el future está listo
+  if (stt_future_.valid() && 
+      stt_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    // Procesar resultado
+    auto response = stt_future_.get();
+    if (response->success) {
+      const_cast<HRIClient*>(this)->stt_text_ = response->message;
+      const_cast<HRIClient*>(this)->stt_state_ = OperationState::COMPLETED;
+      RCLCPP_INFO(get_logger(), "STT completado: '%s'", stt_text_.c_str());
+    } else {
+      const_cast<HRIClient*>(this)->stt_state_ = OperationState::ERROR;
+      RCLCPP_WARN(get_logger(), "STT falló: %s", response->message.c_str());
+    }
+    return true;
+  }
+  
+  return false;
+}
+std::string HRIClient::get_listened_text() const
+{
+  return stt_text_;
+}
+
+void HRIClient::start_speaking(const std::string & text)
 {
   auto request = std::make_shared<simple_hri_interfaces::srv::Speech::Request>();
   request->text = text;
-
-  RCLCPP_DEBUG(get_logger(), "Llamando al servicio TTS con: '%s'", text.c_str());
-
-  auto future = tts_client_->async_send_request(request);
-
-  // Esperar la respuesta (bloqueante)
-  if (rclcpp::spin_until_future_complete(
-    this->get_node_base_interface(), future) == rclcpp::FutureReturnCode::SUCCESS)
-  {
-    auto response = future.get();
-    if (response->success) {
-      RCLCPP_DEBUG(get_logger(), "TTS exitoso");
-      return true;
-    } else {
-      RCLCPP_WARN(get_logger(), "TTS falló: %s", response->debug.c_str());
-      return false;
-    }
-  } else {
-    RCLCPP_ERROR(get_logger(), "Error al llamar al servicio TTS");
-    return false;
-  }
+  
+  RCLCPP_INFO(get_logger(), "Iniciando TTS: '%s'", text.c_str());
+  
+  tts_state_ = OperationState::IN_PROGRESS;
+  tts_start_time_ = std::chrono::steady_clock::now();
+  
+  // Estimar duración basada en el tamaño del texto
+  // Aproximadamente 10 caracteres por segundo (incluye pausas por puntuación)
+  int text_length = text.length();
+  int duration_ms = (text_length * 100) + 500; // +500ms de margen
+  tts_expected_duration_ = std::chrono::milliseconds(duration_ms);
+  
+  RCLCPP_DEBUG(get_logger(), "Duración estimada de TTS: %d ms", duration_ms);
+  
+  tts_future_ = tts_client_->async_send_request(request);
 }
 
-bool HRIClient::call_extract_service(const std::string & interest, std::string & extracted_info)
+bool HRIClient::is_speaking_done() const
+{
+  if (tts_state_ != OperationState::IN_PROGRESS) {
+    return tts_state_ == OperationState::COMPLETED;
+  }
+  
+  // Primero verificar si el servicio ha respondido
+  bool service_responded = false;
+  if (tts_future_.valid() && 
+      tts_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    auto response = tts_future_.get();
+    if (!response->success) {
+      // Si el servicio falló, marcar como error inmediatamente
+      const_cast<HRIClient*>(this)->tts_result_ = false;
+      const_cast<HRIClient*>(this)->tts_state_ = OperationState::ERROR;
+      RCLCPP_ERROR(get_logger(), "TTS falló");
+      return true;
+    }
+    const_cast<HRIClient*>(this)->tts_result_ = true;
+    service_responded = true;
+  }
+  
+  // Verificar si ha pasado el tiempo estimado de habla
+  auto elapsed = std::chrono::steady_clock::now() - tts_start_time_;
+  
+  if (elapsed >= tts_expected_duration_ && service_responded) {
+    // El servicio respondió Y ha pasado el tiempo estimado
+    const_cast<HRIClient*>(this)->tts_state_ = OperationState::COMPLETED;
+    RCLCPP_INFO(get_logger(), "TTS completado (duración: %ld ms)", 
+                std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
+    return true;
+  }
+  
+  return false;
+}
+
+bool HRIClient::get_speaking_result() const
+{
+  return tts_result_;
+}
+
+void HRIClient::start_extract(const std::string & interest, const std::string & text)
 {
   auto request = std::make_shared<simple_hri_interfaces::srv::Extract::Request>();
   request->interest = interest;
-  request->text = "";  // Dejarlo vacío para que grabe audio
-
-  RCLCPP_DEBUG(get_logger(), "Llamando al servicio Extract para obtener: %s", interest.c_str());
-
-  auto future = extract_client_->async_send_request(request);
-
-  // Esperar la respuesta (bloqueante)
-  if (rclcpp::spin_until_future_complete(
-    this->get_node_base_interface(), future) == rclcpp::FutureReturnCode::SUCCESS)
-  {
-    auto response = future.get();
-    extracted_info = response->result;
-    
-    if (!extracted_info.empty()) {
-      RCLCPP_DEBUG(get_logger(), "Extract exitoso: %s", extracted_info.c_str());
-      return true;
-    } else {
-      RCLCPP_WARN(get_logger(), "Extract no pudo extraer información");
-      return false;
-    }
+  request->text = text;  // Si está vacío, el servicio grabará audio; si no, usa este texto
+  
+  if (text.empty()) {
+    RCLCPP_INFO(get_logger(), "Iniciando extracción con audio: %s", interest.c_str());
   } else {
-    RCLCPP_ERROR(get_logger(), "Error al llamar al servicio Extract");
-    return false;
+    RCLCPP_INFO(get_logger(), "Iniciando extracción de texto '%s': %s", text.c_str(), interest.c_str());
   }
+  
+  extract_state_ = OperationState::IN_PROGRESS;
+  extracted_info_.clear();
+  extract_future_ = extract_client_->async_send_request(request);
 }
 
-bool HRIClient::call_yesno_service(bool & user_said_yes)
+bool HRIClient::is_extract_done() const
 {
-  auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
-  request->data = true;
-
-  RCLCPP_DEBUG(get_logger(), "Llamando al servicio YesNo...");
-
-  auto future = yesno_client_->async_send_request(request);
-
-  // Esperar la respuesta (bloqueante)
-  if (rclcpp::spin_until_future_complete(
-    this->get_node_base_interface(), future) == rclcpp::FutureReturnCode::SUCCESS)
-  {
-    auto response = future.get();
-    if (response->success) {
-      std::string answer = response->message;
-      // Convertir a minúsculas para comparar
-      std::transform(answer.begin(), answer.end(), answer.begin(), ::tolower);
-      
-      user_said_yes = (answer.find("yes") != std::string::npos || 
-                       answer.find("sí") != std::string::npos ||
-                       answer.find("si") != std::string::npos);
-      
-      RCLCPP_DEBUG(get_logger(), "YesNo exitoso: %s", answer.c_str());
-      return true;
-    } else {
-      RCLCPP_WARN(get_logger(), "YesNo falló: %s", response->message.c_str());
-      return false;
-    }
-  } else {
-    RCLCPP_ERROR(get_logger(), "Error al llamar al servicio YesNo");
-    return false;
+  if (extract_state_ != OperationState::IN_PROGRESS) {
+    // Devolver true si está completado O en error (ya terminó)
+    return extract_state_ == OperationState::COMPLETED || 
+           extract_state_ == OperationState::ERROR;
   }
+  
+  // Verificar si el future está listo
+  if (extract_future_.valid() && 
+      extract_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    // Procesar resultado
+    auto response = extract_future_.get();
+    const_cast<HRIClient*>(this)->extracted_info_ = response->result;
+    
+    if (!response->result.empty()) {
+      const_cast<HRIClient*>(this)->extract_state_ = OperationState::COMPLETED;
+      RCLCPP_INFO(get_logger(), "Extracción completada: %s", extracted_info_.c_str());
+    } else {
+      const_cast<HRIClient*>(this)->extract_state_ = OperationState::ERROR;
+      RCLCPP_WARN(get_logger(), "Extracción no pudo obtener información");
+    }
+    return true;
+  }
+  
+  return false;
+}
+
+std::string HRIClient::get_extracted_info() const
+{
+  return extracted_info_;
+}
+
+void HRIClient::start_yesno(const std::string & text)
+{
+  auto request = std::make_shared<simple_hri_interfaces::srv::YesNo::Request>();
+  request->text = text;  // Si está vacío, el servicio grabará audio; si no, usa este texto
+  
+  if (text.empty()) {
+    RCLCPP_INFO(get_logger(), "Iniciando detección yes/no con audio...");
+  } else {
+    RCLCPP_INFO(get_logger(), "Iniciando detección yes/no de texto '%s'", text.c_str());
+  }
+  
+  yesno_state_ = OperationState::IN_PROGRESS;
+  yesno_future_ = yesno_client_->async_send_request(request);
+}
+
+bool HRIClient::is_yesno_done() const
+{
+  if (yesno_state_ != OperationState::IN_PROGRESS) {
+    // Devolver true si está completado O en error (ya terminó)
+    return yesno_state_ == OperationState::COMPLETED || 
+           yesno_state_ == OperationState::ERROR;
+  }
+  
+  // Verificar si el future está listo
+  if (yesno_future_.valid() && 
+      yesno_future_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    // Procesar resultado
+    auto response = yesno_future_.get();
+    const_cast<HRIClient*>(this)->yesno_result_ = response->result;
+    std::string answer_lower = response->result;
+    std::transform(answer_lower.begin(), answer_lower.end(), answer_lower.begin(), ::tolower);
+    if (answer_lower == "yes" || answer_lower == "no") {
+      const_cast<HRIClient*>(this)->yesno_state_ = OperationState::COMPLETED;
+      RCLCPP_INFO(get_logger(), "YesNo completado: %s", response->result.c_str());
+    } else {
+      const_cast<HRIClient*>(this)->yesno_state_ = OperationState::ERROR;
+      RCLCPP_WARN(get_logger(), "YesNo no pudo obtener respuesta válida: %s", response->result.c_str());
+    }
+    return true;
+  }
+  
+  return false;
+}
+
+std::string HRIClient::get_yesno_result() const
+{
+  return yesno_result_;
 }
 
 void HRIClient::listened_text_callback(const std_msgs::msg::String::SharedPtr msg)
