@@ -76,7 +76,9 @@ ObstacleDetectorNode::is_obstacle(const sensor_msgs::msg::LaserScan & scan, floa
   return distance_min < dist_thrld;
 }
 
-void ObstacleDetectorNode::print_obstacle_info(const sensor_msgs::msg::LaserScan & scan, float dist_thrld)
+void ObstacleDetectorNode::print_obstacle_info(
+  const sensor_msgs::msg::LaserScan & scan,
+  float dist_thrld)
 {
   if (scan.ranges.empty()) {
     RCLCPP_WARN(get_logger(), "Received empty LaserScan ranges");
@@ -108,7 +110,8 @@ void ObstacleDetectorNode::print_obstacle_info(const sensor_msgs::msg::LaserScan
   }
 
   float obstacle_angle = scan.angle_min + static_cast<float>(min_idx) * scan.angle_increment;
-  RCLCPP_INFO(get_logger(), "Min distance: %f m at angle %f deg", distance_min, obstacle_angle * 180.0f / M_PI);
+  RCLCPP_INFO(get_logger(), "Min distance: %f m at angle %f deg", distance_min,
+      obstacle_angle * 180.0f / M_PI);
 
   float obstacle_x = distance_min * std::cos(obstacle_angle);
   float obstacle_y = distance_min * std::sin(obstacle_angle);
