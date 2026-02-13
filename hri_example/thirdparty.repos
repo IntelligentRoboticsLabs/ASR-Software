@@ -1,0 +1,9 @@
+repositories:
+  simple_hri:
+    type: git
+    url: https://github.com/rodperex/simple_hri.git
+    version: main
+  audio_common:
+    type: git
+    url: https://github.com/rodperex/audio_common.git
+    version: ros2
