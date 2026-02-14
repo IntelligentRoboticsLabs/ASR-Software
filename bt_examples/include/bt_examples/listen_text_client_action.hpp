@@ -12,28 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef BT_EXAMPLES__SAY_TEXT_ACTION_HPP_
-#define BT_EXAMPLES__SAY_TEXT_ACTION_HPP_
+#ifndef BT_EXAMPLES__LISTEN_TEXT_CLIENT_ACTION_HPP_
+#define BT_EXAMPLES__LISTEN_TEXT_CLIENT_ACTION_HPP_
 
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
-#include <simple_hri_interfaces/srv/speech.hpp>
-#include <optional>
+#include "hri_example/hri_client.hpp"
 
-class SayTextAction : public BT::StatefulActionNode
+class ListenTextClientAction : public BT::StatefulActionNode
 {
 public:
-  using Speech = simple_hri_interfaces::srv::Speech;
-
-  SayTextAction(
+  ListenTextClientAction(
     const std::string & name,
     const BT::NodeConfig & config,
-    rclcpp::Node::SharedPtr node);
+    std::shared_ptr<HRIClient> hri_client);
 
   static BT::PortsList providedPorts()
   {
     return {
-      BT::InputPort<std::string>("text", "Text to say")
+      BT::OutputPort<std::string>("recognized_text", "Text recognized by ASR")
     };
   }
 
@@ -42,14 +39,8 @@ public:
   void onHalted() override;
 
 private:
-  std::string formatText(const std::string & text);
-  
-  rclcpp::Node::SharedPtr node_;
-  rclcpp::Client<Speech>::SharedPtr tts_client_;
-  std::optional<rclcpp::Client<Speech>::FutureAndRequestId> future_;
+  std::shared_ptr<HRIClient> hri_client_;
   std::chrono::steady_clock::time_point start_time_;
-  std::chrono::milliseconds tts_expected_duration_{0};
-  bool service_responded_{false};
 };
 
-#endif  // BT_EXAMPLES__SAY_TEXT_ACTION_HPP_
+#endif  // BT_EXAMPLES__LISTEN_TEXT_CLIENT_ACTION_HPP_

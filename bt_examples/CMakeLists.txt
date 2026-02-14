@@ -21,6 +21,7 @@ find_package(tf2_ros REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(simple_hri_interfaces REQUIRED)
+find_package(hri_example REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -37,6 +38,10 @@ add_library(bt_nodes SHARED
   src/say_text_action.cpp
   src/listen_text_action.cpp
   src/extract_info_action.cpp
+  src/say_text_client_action.cpp
+  src/listen_text_client_action.cpp
+  src/extract_info_client_action.cpp
+  src/text_utils.cpp
   src/bt_nodes/bt_node_registration.cpp
 )
 
@@ -48,6 +53,7 @@ ament_target_dependencies(bt_nodes
   sensor_msgs
   geometry_msgs
   tf2_ros
+  hri_example
   nav2_msgs
   behaviortree_cpp
   simple_hri_interfaces
@@ -79,6 +85,16 @@ ament_target_dependencies(drink_order_bt_example
   simple_hri_interfaces
 )
 
+# Drink order BT example with HRIClient
+add_executable(drink_order_client_bt_example src/drink_order_client_bt_example.cpp)
+target_link_libraries(drink_order_client_bt_example bt_nodes)
+ament_target_dependencies(drink_order_client_bt_example
+  rclcpp
+  ament_index_cpp
+  behaviortree_cpp
+  hri_example
+)
+
 # Battery simulator node (for BT)
 add_executable(battery_simulator src/battery_simulator.cpp)
 ament_target_dependencies(battery_simulator
@@ -97,6 +113,7 @@ install(TARGETS bt_nodes
 install(TARGETS
   bumpandgo_bt_example
   drink_order_bt_example
+  drink_order_client_bt_example
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -9,8 +9,14 @@
 #include "bt_examples/say_text_action.hpp"
 #include "bt_examples/listen_text_action.hpp"
 #include "bt_examples/extract_info_action.hpp"
+#include "bt_examples/say_text_client_action.hpp"
+#include "bt_examples/listen_text_client_action.hpp"
+#include "bt_examples/extract_info_client_action.hpp"
 
-void register_bt_nodes(BT::BehaviorTreeFactory& factory, rclcpp::Node::SharedPtr node) {
+void register_bt_nodes(
+  BT::BehaviorTreeFactory& factory,
+  rclcpp::Node::SharedPtr node,
+  std::shared_ptr<HRIClient> hri_client) {
   factory.registerBuilder<IsObstacleNearCondition>(
     "IsObstacleNear",
     [node](const std::string& name, const BT::NodeConfiguration& config) {
@@ -70,6 +76,27 @@ void register_bt_nodes(BT::BehaviorTreeFactory& factory, rclcpp::Node::SharedPtr
     [node](const std::string& name, const BT::NodeConfiguration& config) {
       return std::make_unique<ExtractInfoAction>(name, config, node);
     });
+
+  // Registrar nodos que usan HRIClient (solo si está disponible)
+  if (hri_client) {
+    factory.registerBuilder<SayTextClientAction>(
+      "SayTextClient",
+      [hri_client](const std::string& name, const BT::NodeConfiguration& config) {
+        return std::make_unique<SayTextClientAction>(name, config, hri_client);
+      });
+
+    factory.registerBuilder<ListenTextClientAction>(
+      "ListenTextClient",
+      [hri_client](const std::string& name, const BT::NodeConfiguration& config) {
+        return std::make_unique<ListenTextClientAction>(name, config, hri_client);
+      });
+
+    factory.registerBuilder<ExtractInfoClientAction>(
+      "ExtractInfoClient",
+      [hri_client](const std::string& name, const BT::NodeConfiguration& config) {
+        return std::make_unique<ExtractInfoClientAction>(name, config, hri_client);
+      });
+  }
 
     // Registrar decorador RetryNode (Timeout ya está built-in)
   factory.registerBuilder<BT::RetryNode>(

@@ -104,6 +104,7 @@ private:
   bool tts_result_ = false;
   std::chrono::steady_clock::time_point tts_start_time_;
   std::chrono::milliseconds tts_expected_duration_{0};
+  bool tts_service_responded_ = false;
   
   OperationState extract_state_ = OperationState::IDLE;
   std::string extracted_info_;

@@ -17,21 +17,34 @@
 #include <behaviortree_cpp/loggers/bt_cout_logger.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+#include "hri_example/hri_client.hpp"
 #include "bt_examples/bt_node_registration.hpp"
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("drink_order_bt");
+  auto node = std::make_shared<rclcpp::Node>("drink_order_client_bt");
+  
+  // Crear el cliente HRI
+  auto hri_client = std::make_shared<HRIClient>();
+  
+  // Esperar a que los servicios estén disponibles
+  RCLCPP_INFO(node->get_logger(), "Waiting for HRI services...");
+  if (!hri_client->wait_for_services(std::chrono::seconds(10))) {
+    RCLCPP_ERROR(node->get_logger(), "HRI services not available. Exiting.");
+    rclcpp::shutdown();
+    return 1;
+  }
+  RCLCPP_INFO(node->get_logger(), "HRI services ready!");
   
   // Factory para registrar nodos personalizados
   BT::BehaviorTreeFactory factory;
   
-  // Registrar nodos personalizados
-  register_bt_nodes(factory, node);
+  // Registrar todos los nodos (incluyendo los que usan HRIClient)
+  register_bt_nodes(factory, node, hri_client);
   
   // Obtener path al archivo XML
   std::string package_share_dir = ament_index_cpp::get_package_share_directory("bt_examples");
-  std::string tree_path = package_share_dir + "/config/drink_order_tree.xml";
+  std::string tree_path = package_share_dir + "/config/drink_order_client_tree.xml";
   
   // Cargar árbol desde XML
   auto tree = factory.createTreeFromFile(tree_path);
@@ -39,7 +52,7 @@ int main(int argc, char** argv) {
   // Logger para depuración
   BT::StdCoutLogger logger(tree);
   
-  RCLCPP_INFO(node->get_logger(), "Drink order behavior tree started");
+  RCLCPP_INFO(node->get_logger(), "Drink order behavior tree (with HRIClient) started");
   RCLCPP_INFO(node->get_logger(), "The robot will ask what you want to drink, listen, and repeat it back");
   
   // Bucle principal: tick del árbol a 10 Hz
@@ -47,8 +60,9 @@ int main(int argc, char** argv) {
   BT::NodeStatus status = BT::NodeStatus::IDLE;
   
   while (rclcpp::ok()) {
-    // Procesar callbacks de ROS
+    // Procesar callbacks de ROS (importante para que HRIClient reciba mensajes)
     rclcpp::spin_some(node);
+    rclcpp::spin_some(hri_client);
     
     // Evaluar árbol
     status = tree.tickOnce();

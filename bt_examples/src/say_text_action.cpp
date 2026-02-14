@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "bt_examples/say_text_action.hpp"
-#include <vector>
+#include "bt_examples/text_utils.hpp"
 
 SayTextAction::SayTextAction(
   const std::string & name,
@@ -27,54 +27,7 @@ SayTextAction::SayTextAction(
 
 std::string SayTextAction::formatText(const std::string & text)
 {
-  std::string formatted_text = text;
-
-  // Expandir manualmente las referencias del blackboard en el texto
-  // BehaviorTree.CPP no expande {variables} dentro de strings literales automáticamente
-  size_t pos = 0;
-  while ((pos = formatted_text.find('{', pos)) != std::string::npos) {
-    size_t end_pos = formatted_text.find('}', pos);
-    if (end_pos == std::string::npos) break;
-    
-    std::string var_name = formatted_text.substr(pos + 1, end_pos - pos - 1);
-    BT::Expected<std::string> var_value = config().blackboard->get<std::string>(var_name);
-    
-    if (var_value) {
-      formatted_text.replace(pos, end_pos - pos + 1, var_value.value());
-      pos += var_value.value().length();
-    } else {
-      pos = end_pos + 1;
-    }
-  }
-
-  // Formatear listas separadas por punto y coma (ej: "agua;café;té" -> "agua, café y té")
-  if (formatted_text.find(';') != std::string::npos) {
-    std::vector<std::string> items;
-    size_t start = 0;
-    size_t end;
-    
-    while ((end = formatted_text.find(';', start)) != std::string::npos) {
-      items.push_back(formatted_text.substr(start, end - start));
-      start = end + 1;
-    }
-    items.push_back(formatted_text.substr(start));
-    
-    if (items.size() > 1) {
-      formatted_text.clear();
-      for (size_t i = 0; i < items.size(); ++i) {
-        if (i > 0) {
-          if (i == items.size() - 1) {
-            formatted_text += " y ";
-          } else {
-            formatted_text += ", ";
-          }
-        }
-        formatted_text += items[i];
-      }
-    }
-  }
-
-  return formatted_text;
+  return bt_examples::formatText(text, config().blackboard);
 }
 
 BT::NodeStatus SayTextAction::onStart()
@@ -101,25 +54,26 @@ BT::NodeStatus SayTextAction::onStart()
 
   RCLCPP_INFO(node_->get_logger(), "Saying: '%s'", text.c_str());
 
+  // Estimar duración basada en el tamaño del texto
+  // Aproximadamente 10 caracteres por segundo (incluye pausas por puntuación)
+  int text_length = text.length();
+  int duration_ms = (text_length * 100) + 500; // +500ms de margen
+  tts_expected_duration_ = std::chrono::milliseconds(duration_ms);
+  
+  RCLCPP_DEBUG(node_->get_logger(), "Duración estimada de TTS: %d ms", duration_ms);
+
   // Enviar petición asíncrona
   future_ = tts_client_->async_send_request(request);
   start_time_ = std::chrono::steady_clock::now();
+  service_responded_ = false;
   
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus SayTextAction::onRunning()
 {
-  // Verificar timeout (30 segundos)
-  auto elapsed = std::chrono::steady_clock::now() - start_time_;
-  if (elapsed > std::chrono::seconds(30)) {
-    RCLCPP_ERROR(node_->get_logger(), "TTS service timeout");
-    future_.reset();
-    return BT::NodeStatus::FAILURE;
-  }
-
-  // Verificar si el future está listo
-  if (future_ && future_->future.valid() && 
+  // Verificar si el servicio ha respondido (generación del audio)
+  if (!service_responded_ && future_ && future_->future.valid() && 
       future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
     auto response = future_->future.get();
     future_.reset();
@@ -128,8 +82,25 @@ BT::NodeStatus SayTextAction::onRunning()
       RCLCPP_ERROR(node_->get_logger(), "TTS service failed: %s", response->debug.c_str());
       return BT::NodeStatus::FAILURE;
     }
-
-    RCLCPP_INFO(node_->get_logger(), "TTS completed successfully");
+    
+    service_responded_ = true;
+    RCLCPP_DEBUG(node_->get_logger(), "TTS service responded, waiting for audio playback...");
+  }
+  
+  // Verificar si ha pasado el tiempo estimado de habla
+  auto elapsed = std::chrono::steady_clock::now() - start_time_;
+  
+  // Timeout de seguridad (respuesta del servicio + reproducción)
+  auto max_timeout = tts_expected_duration_ + std::chrono::seconds(5);
+  if (elapsed > max_timeout) {
+    RCLCPP_ERROR(node_->get_logger(), "TTS operation timeout");
+    return BT::NodeStatus::FAILURE;
+  }
+  
+  // Solo completar si el servicio respondió Y pasó el tiempo estimado
+  if (service_responded_ && elapsed >= tts_expected_duration_) {
+    RCLCPP_INFO(node_->get_logger(), "TTS completed (duration: %ld ms)", 
+                std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -140,4 +111,5 @@ void SayTextAction::onHalted()
 {
   RCLCPP_WARN(node_->get_logger(), "TTS action halted");
   future_.reset();
+  service_responded_ = false;
 }

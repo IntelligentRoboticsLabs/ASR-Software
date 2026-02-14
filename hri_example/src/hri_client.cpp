@@ -130,6 +130,7 @@ void HRIClient::start_speaking(const std::string & text)
   
   tts_state_ = OperationState::IN_PROGRESS;
   tts_start_time_ = std::chrono::steady_clock::now();
+  tts_service_responded_ = false;
   
   // Estimar duración basada en el tamaño del texto
   // Aproximadamente 10 caracteres por segundo (incluye pausas por puntuación)
@@ -151,8 +152,7 @@ bool HRIClient::is_speaking_done()
   }
   
   // Primero verificar si el servicio ha respondido
-  bool service_responded = false;
-  if (tts_future_ && tts_future_->future.valid() && 
+  if (!tts_service_responded_ && tts_future_ && tts_future_->future.valid() && 
       tts_future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
     auto response = tts_future_->future.get();
     if (!response->success) {
@@ -163,13 +163,14 @@ bool HRIClient::is_speaking_done()
       return true;
     }
     tts_result_ = true;
-    service_responded = true;
+    tts_service_responded_ = true;
+    RCLCPP_DEBUG(get_logger(), "TTS servicio respondió, esperando reproducción...");
   }
   
   // Verificar si ha pasado el tiempo estimado de habla
   auto elapsed = std::chrono::steady_clock::now() - tts_start_time_;
   
-  if (elapsed >= tts_expected_duration_ && service_responded) {
+  if (elapsed >= tts_expected_duration_ && tts_service_responded_) {
     // El servicio respondió Y ha pasado el tiempo estimado
     tts_state_ = OperationState::COMPLETED;
     RCLCPP_INFO(get_logger(), "TTS completado (duración: %ld ms)", 

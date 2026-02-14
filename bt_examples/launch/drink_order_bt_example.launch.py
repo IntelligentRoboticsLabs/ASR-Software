@@ -33,7 +33,7 @@ def generate_launch_description():
     # Behavior Tree node
     drink_order_bt_node = Node(
         package='bt_examples',
-        executable='drink_order_bt_example',
+        executable='drink_order_client_bt_example',
         name='drink_order_bt',
         output='screen',
         parameters=[],
