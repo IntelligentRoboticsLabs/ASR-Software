@@ -12,7 +12,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(behaviortree_cpp_v3 REQUIRED)
+find_package(behaviortree_cpp REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
 set(dependencies
@@ -21,7 +21,7 @@ set(dependencies
   lifecycle_msgs
   std_msgs
   rclcpp_components
-  behaviortree_cpp_v3
+  behaviortree_cpp
   ament_index_cpp
 )
 

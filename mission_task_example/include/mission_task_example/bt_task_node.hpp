@@ -18,7 +18,7 @@
 #include <string>
 #include <memory>
 #include "mission_task_example/task_lifecycle_node.hpp"
-#include "behaviortree_cpp_v3/bt_factory.h"
+#include <behaviortree_cpp/bt_factory.h>
 
 namespace mission_task_example
 {

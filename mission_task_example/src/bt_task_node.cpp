@@ -55,7 +55,7 @@ bool BTTaskNode::do_task_work()
   }
   
   // Tick the behavior tree
-  last_bt_status_ = tree_->tickRoot();
+  last_bt_status_ = tree_->tickOnce();
   
   // Check if BT completed
   if (last_bt_status_ == BT::NodeStatus::SUCCESS) {
