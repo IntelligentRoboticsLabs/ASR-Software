@@ -62,10 +62,11 @@ private:
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> task_c_node_;
   
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
+  rclcpp::TimerBase::SharedPtr timer_;
   int idle_ticks_;
   int completed_ticks_;
   static const int IDLE_WAIT_TICKS = 30;
-  static const int COMPLETED_WAIT_TICKS = 50;
+  static const int COMPLETED_WAIT_TICKS = 5;
 };
 
 }  // namespace mission_task_example

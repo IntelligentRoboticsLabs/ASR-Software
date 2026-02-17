@@ -48,6 +48,11 @@ void MissionExecutor::initialize()
 
   RCLCPP_INFO(node_->get_logger(), "All tasks configured successfully");
 
+  // Create timer to execute FSM update at 10 Hz
+  timer_ = node_->create_wall_timer(
+    std::chrono::milliseconds(100),
+    std::bind(&MissionExecutor::update, this));
+
   // Start FSM
   transition_to(MissionState::IDLE);
 }
@@ -141,9 +146,8 @@ void MissionExecutor::handle_completed_state()
   completed_ticks_++;
 
   if (completed_ticks_ >= COMPLETED_WAIT_TICKS) {
-    RCLCPP_INFO(node_->get_logger(), "Restarting mission...");
-    completed_ticks_ = 0;
-    transition_to(MissionState::IDLE);
+    RCLCPP_INFO(node_->get_logger(), "Mission completed. Shutting down...");
+    timer_->cancel();
   }
 }
 

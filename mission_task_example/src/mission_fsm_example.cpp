@@ -61,11 +61,6 @@ int main(int argc, char ** argv)
   RCLCPP_INFO(node->get_logger(), "Initializing Mission Executor");
   mission_executor->initialize();
   
-  // Timer to execute FSM update at 10 Hz
-  auto timer = node->create_wall_timer(
-    std::chrono::milliseconds(100),
-    [&mission_executor]() { mission_executor->update(); });
-  
   RCLCPP_INFO(node->get_logger(), "Mission FSM Node ready");
   
   // Create executor for spinning multiple nodes
