@@ -22,6 +22,7 @@ BT::NodeStatus BackUpAction::onStart() {
   getInput("obstacle_distance", obstacle_dist);
   getInput("base_distance", base_dist);
   
+  // Margen de seguridad: retrocede hasta el obstáculo + 20cm extra
   distance_ = std::max(base_dist, obstacle_dist + 0.2);
   
   start_time_ = node_->now();
