@@ -17,7 +17,8 @@
 NavigationClient::NavigationClient()
 : Node("navigation_client")
 {
-  // Crear el cliente de acción
+  // Crear el cliente de acción para comunicarse con Nav2
+  // Este cliente encapsula toda la complejidad de comunicación asíncrona
   nav_client_ = rclcpp_action::create_client<NavigateToPose>(
     this, "navigate_to_pose");
   
@@ -26,6 +27,8 @@ NavigationClient::NavigationClient()
 
 bool NavigationClient::wait_for_action_server(std::chrono::seconds timeout)
 {
+  // Método de verificación: asegura que Nav2 está operativo
+  // FASE 1: Antes de enviar objetivos, verificar disponibilidad de la capacidad
   if (!nav_client_->wait_for_action_server(timeout)) {
     RCLCPP_ERROR(get_logger(), 
                  "Servidor de navegación no disponible tras espera");
@@ -37,6 +40,10 @@ bool NavigationClient::wait_for_action_server(std::chrono::seconds timeout)
 
 void NavigationClient::send_goal(const geometry_msgs::msg::PoseStamped& target_pose)
 {
+  // Método de activación: solicita navegación de forma ASÍNCRONA
+  // FASE 2: Enviar objetivo sin bloquear, retorna inmediatamente
+  // Los callbacks gestionarán la respuesta, feedback y resultado
+  
   // Resetear flags de control
   goal_active_ = false;
   goal_done_ = false;
@@ -78,6 +85,8 @@ void NavigationClient::send_goal(const geometry_msgs::msg::PoseStamped& target_p
 void NavigationClient::goal_response_callback(
   const GoalHandleNav::SharedPtr & goal_handle)
 {
+  // Callback ejecutado cuando Nav2 responde si acepta o rechaza el objetivo
+  // Actualiza flags para que la aplicación pueda consultar el estado
   if (!goal_handle) {
     RCLCPP_ERROR(get_logger(), "Objetivo rechazado por el servidor");
     goal_done_ = true;
@@ -87,14 +96,17 @@ void NavigationClient::goal_response_callback(
   
   RCLCPP_DEBUG(get_logger(), "Objetivo aceptado, navegación iniciada");
   goal_handle_ = goal_handle;
-  goal_active_ = true;
+  goal_active_ = true;  // Señaliza que la navegación está en progreso
 }
 
 void NavigationClient::feedback_callback(
   GoalHandleNav::SharedPtr,
   const std::shared_ptr<const NavigateToPose::Feedback> feedback)
 {
-  // Almacenar el último feedback recibido
+  // Callback ejecutado periódicamente durante la navegación
+  // FASE 3: Provee información de progreso (distancia, tiempo) para monitorizar
+  
+  // Almacenar el último feedback recibido para consultas no bloqueantes
   last_feedback_ = feedback;
   
   // Feedback periódico: distancia restante, tiempo, etc.
@@ -111,6 +123,8 @@ void NavigationClient::feedback_callback(
 
 void NavigationClient::result_callback(const GoalHandleNav::WrappedResult & result)
 {
+  // Callback ejecutado cuando la navegación finaliza (sea cual sea el resultado)
+  // FASE 4: Actualiza flags para permitir procesar éxito/fallo/cancelación
   goal_active_ = false;
   goal_done_ = true;
 
@@ -140,6 +154,8 @@ void NavigationClient::result_callback(const GoalHandleNav::WrappedResult & resu
 
 void NavigationClient::cancel_goal()
 {
+  // Método de control: permite abortar una navegación en progreso
+  // Útil cuando la aplicación decide cambiar de plan (emergencia, timeout, nueva misión)
   if (goal_handle_ && goal_active_) {
     RCLCPP_DEBUG(get_logger(), "Cancelando objetivo de navegación");
     nav_client_->async_cancel_goal(goal_handle_);
@@ -150,6 +166,8 @@ void NavigationClient::cancel_goal()
 geometry_msgs::msg::PoseStamped NavigationClient::create_pose_stamped(
   double x, double y, double yaw)
 {
+  // Método auxiliar: simplifica la creación de poses sin gestionar quaterniones
+  // manualmente. Evita repetir código en aplicaciones con múltiples waypoints.
   geometry_msgs::msg::PoseStamped pose;
   pose.header.frame_id = "map";
   pose.header.stamp = this->now();
@@ -157,7 +175,7 @@ geometry_msgs::msg::PoseStamped NavigationClient::create_pose_stamped(
   pose.pose.position.y = y;
   pose.pose.position.z = 0.0;
   
-  // Convertir yaw a quaternion
+  // Convertir yaw a quaternion usando TF2
   tf2::Quaternion q;
   q.setRPY(0.0, 0.0, yaw);
   pose.pose.orientation.x = q.x();
