@@ -180,6 +180,12 @@ class OrthogonalRobot : public rclcpp::Node
   double battery_percentage_ = 100.0;
   bool start_button_pressed_ = false;
   
+  // COORDINACIÓN ENTRE REGIONES ORTOGONALES:
+  // La FSM de batería modula top_speed_ según el nivel de carga
+  // La FSM de navegación usa top_speed_ como límite máximo
+  // Esto mantiene ortogonalidad: no hay acoplamiento directo entre FSM
+  double top_speed_ = 0.3;  // Velocidad máxima permitida por el sistema
+  
   const double OBSTACLE_THRESHOLD = 0.5;
   const double BATTERY_LOW_THRESHOLD = 30.0;
   const double BATTERY_CRITICAL_THRESHOLD = 10.0;
@@ -202,6 +208,10 @@ public:
   double get_battery_critical_threshold() const { return BATTERY_CRITICAL_THRESHOLD; }
   bool is_start_pressed() const { return start_button_pressed_; }
   void clear_start_button() { start_button_pressed_ = false; }
+  
+  // Acceso a velocidad máxima permitida (modulada por FSM de batería)
+  double get_top_speed() const { return top_speed_; }
+  void set_top_speed(double speed) { top_speed_ = speed; }
   
   void publish_velocity(double linear, double angular);
   void simulate_start_button();

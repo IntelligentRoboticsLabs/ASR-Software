@@ -89,8 +89,15 @@ void OrthogonalRobot::control_cycle()
 {
   // CLAVE ARQUITECTÓNICA: Ambas FSM se ejecutan en el mismo ciclo
   // Cada una gestiona su dimensión ortogonal del comportamiento
-  nav_fsm_->step();
+  // 
+  // COORDINACIÓN SIN ROMPER ORTOGONALIDAD:
+  // - FSM batería: modula top_speed_ según nivel de carga (restricción del sistema)
+  // - FSM navegación: decide movimiento publicando velocidad <= top_speed_
+  // - No hay acoplamiento directo: comparten variable de estado del robot
+  // 
+  // Orden de ejecución: batería primero para actualizar top_speed antes de navegación
   battery_fsm_->step();
+  nav_fsm_->step();
 }
 
 void OrthogonalRobot::print_status()
@@ -139,7 +146,11 @@ void NavMovingState::on_entry()
 
 void NavMovingState::on_do()
 {
-  robot_->publish_velocity(0.3, 0.0);
+  // COORDINACIÓN ENTRE REGIONES ORTOGONALES SIN ROMPER ORTOGONALIDAD:
+  // La FSM de navegación publica la velocidad máxima permitida por el sistema
+  // La FSM de batería modula top_speed según el nivel de carga
+  // Si batería crítica, top_speed será 0.0 y el robot se detendrá automáticamente
+  robot_->publish_velocity(robot_->get_top_speed(), 0.0);
 }
 
 NavState* NavMovingState::check_transitions()
@@ -167,6 +178,7 @@ void NavStoppedState::on_entry()
 
 void NavStoppedState::on_do()
 {
+  // Mantener detenido
   robot_->publish_velocity(0.0, 0.0);
 }
 
@@ -188,12 +200,14 @@ BatteryOKState::BatteryOKState(OrthogonalRobot* r) : robot_(r) {}
 
 void BatteryOKState::on_entry()
 {
-  RCLCPP_INFO(robot_->get_logger(), "[BAT] Batería en nivel óptimo");
+  RCLCPP_INFO(robot_->get_logger(), "[BAT] Batería en nivel óptimo - Velocidad máxima permitida");
+  robot_->set_top_speed(0.3);  // Velocidad normal
 }
 
 void BatteryOKState::on_do()
 {
-  // No hace nada, solo monitoriza
+  // Mantener velocidad máxima normal
+  robot_->set_top_speed(0.3);
 }
 
 BatteryState* BatteryOKState::check_transitions()
@@ -208,12 +222,14 @@ BatteryLowState::BatteryLowState(OrthogonalRobot* r) : robot_(r) {}
 
 void BatteryLowState::on_entry()
 {
-  RCLCPP_WARN(robot_->get_logger(), "[BAT] ⚠️  Batería baja - Considerar recarga pronto");
+  RCLCPP_WARN(robot_->get_logger(), "[BAT] ⚠️  Batería baja - Reduciendo velocidad máxima a 0.15 m/s");
+  robot_->set_top_speed(0.15);  // Reducir velocidad para ahorrar energía
 }
 
 void BatteryLowState::on_do()
 {
-  // Podría reducir velocidad máxima, activar modo ahorro, etc.
+  // Mantener velocidad reducida
+  robot_->set_top_speed(0.15);
 }
 
 BatteryState* BatteryLowState::check_transitions()
@@ -231,15 +247,14 @@ BatteryCriticalState::BatteryCriticalState(OrthogonalRobot* r) : robot_(r) {}
 
 void BatteryCriticalState::on_entry()
 {
-  RCLCPP_ERROR(robot_->get_logger(), "[BAT] 🔴 BATERÍA CRÍTICA - Deteniendo operaciones");
-  // Forzar detención de motores por seguridad
-  robot_->publish_velocity(0.0, 0.0);
+  RCLCPP_ERROR(robot_->get_logger(), "[BAT] 🔴 BATERÍA CRÍTICA - Velocidad máxima = 0 (sistema detenido)");
+  robot_->set_top_speed(0.0);  // Bloquear movimiento por seguridad
 }
 
 void BatteryCriticalState::on_do()
 {
-  // Mantener motores apagados
-  robot_->publish_velocity(0.0, 0.0);
+  // Mantener velocidad máxima en cero
+  robot_->set_top_speed(0.0);
 }
 
 BatteryState* BatteryCriticalState::check_transitions()

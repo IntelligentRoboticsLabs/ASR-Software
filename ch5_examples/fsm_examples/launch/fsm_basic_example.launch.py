@@ -19,13 +19,13 @@ def generate_launch_description():
     
     scan_topic_arg = DeclareLaunchArgument(
         'scan_topic',
-        default_value='/scan',
+        default_value='/scan_raw',
         description='Topic para recibir datos del láser'
     )
     
     use_sim_time_arg = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='false',
+        default_value='true',
         description='Usar tiempo de simulación'
     )
     
