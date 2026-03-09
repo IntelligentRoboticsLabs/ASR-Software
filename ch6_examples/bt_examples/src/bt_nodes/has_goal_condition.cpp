@@ -1,4 +1,4 @@
-#include "bt_examples/has_goal_condition.hpp"
+#include "bt_examples/bt_nodes/has_goal_condition.hpp"
 
 HasGoalCondition::HasGoalCondition(const std::string& name,
                                    const BT::NodeConfiguration& config,

@@ -1,22 +1,28 @@
 #include <behaviortree_cpp/bt_factory.h>
-#include "bt_examples/is_obstacle_near_condition.hpp"
-#include "bt_examples/is_battery_low_condition.hpp"
-#include "bt_examples/backup_action.hpp"
-#include "bt_examples/spin_action.hpp"
-#include "bt_examples/move_forward_action.hpp"
-#include "bt_examples/return_to_charger_action.hpp"
-#include "bt_examples/abort_mission_action.hpp"
-#include "bt_examples/say_text_action.hpp"
-#include "bt_examples/listen_text_action.hpp"
-#include "bt_examples/extract_info_action.hpp"
-#include "bt_examples/say_text_client_action.hpp"
-#include "bt_examples/listen_text_client_action.hpp"
-#include "bt_examples/extract_info_client_action.hpp"
+#include "bt_examples/bt_nodes/is_obstacle_near_condition.hpp"
+#include "bt_examples/bt_nodes/is_battery_low_condition.hpp"
+#include "bt_examples/bt_nodes/backup_action.hpp"
+#include "bt_examples/bt_nodes/spin_action.hpp"
+#include "bt_examples/bt_nodes/move_forward_action.hpp"
+#include "bt_examples/bt_nodes/return_to_charger_action.hpp"
+#include "bt_examples/bt_nodes/abort_mission_action.hpp"
+#include "bt_examples/bt_nodes/say_text_action.hpp"
+#include "bt_examples/bt_nodes/listen_text_action.hpp"
+#include "bt_examples/bt_nodes/extract_info_action.hpp"
+#include "bt_examples/bt_nodes/say_text_client_action.hpp"
+#include "bt_examples/bt_nodes/listen_text_client_action.hpp"
+#include "bt_examples/bt_nodes/extract_info_client_action.hpp"
 
 void register_bt_nodes(
   BT::BehaviorTreeFactory& factory,
   rclcpp::Node::SharedPtr node,
   std::shared_ptr<HRIClient> hri_client) {
+  // Registro de IsObstacleNear:
+  // - Tipo de nodo C++: IsObstacleNearCondition
+  // - Nombre en XML: "IsObstacleNear" -> se usa como <IsObstacleNear/>
+  // - Lambda captura 'node' para inyectarlo al constructor
+  // - BehaviorTree.CPP proporciona 'name' y 'config' al crear el nodo desde el XML
+  // - La lambda actúa como "factory function" que añade dependencias extra (node)
   factory.registerBuilder<IsObstacleNearCondition>(
     "IsObstacleNear",
     [node](const std::string& name, const BT::NodeConfiguration& config) {

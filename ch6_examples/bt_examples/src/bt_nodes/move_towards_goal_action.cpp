@@ -1,4 +1,4 @@
-#include "bt_examples/move_towards_goal_action.hpp"
+#include "bt_examples/bt_nodes/move_towards_goal_action.hpp"
 #include <cmath>
 
 MoveTowardsGoalAction::MoveTowardsGoalAction(const std::string& name,

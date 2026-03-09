@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
-<root main_tree_to_execute="BumpAndGo">
+<root
+  BTCPP_format="4" 
+  main_tree_to_execute="BumpAndGo">
   <BehaviorTree ID="BumpAndGo">
     <!-- Raíz: Fallback para priorizar batería baja -->
     <Fallback name="MainLoop">

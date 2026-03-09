@@ -28,19 +28,21 @@ include_directories(include)
 
  # BT node implementations library
 add_library(bt_nodes SHARED
-  src/is_obstacle_near_condition.cpp
-  src/is_battery_low_condition.cpp
-  src/backup_action.cpp
-  src/spin_action.cpp
-  src/move_forward_action.cpp
-  src/return_to_charger_action.cpp
-  src/abort_mission_action.cpp
-  src/say_text_action.cpp
-  src/listen_text_action.cpp
-  src/extract_info_action.cpp
-  src/say_text_client_action.cpp
-  src/listen_text_client_action.cpp
-  src/extract_info_client_action.cpp
+  src/bt_nodes/is_obstacle_near_condition.cpp
+  src/bt_nodes/is_battery_low_condition.cpp
+  src/bt_nodes/has_goal_condition.cpp
+  src/bt_nodes/backup_action.cpp
+  src/bt_nodes/spin_action.cpp
+  src/bt_nodes/move_forward_action.cpp
+  src/bt_nodes/move_towards_goal_action.cpp
+  src/bt_nodes/return_to_charger_action.cpp
+  src/bt_nodes/abort_mission_action.cpp
+  src/bt_nodes/say_text_action.cpp
+  src/bt_nodes/listen_text_action.cpp
+  src/bt_nodes/extract_info_action.cpp
+  src/bt_nodes/say_text_client_action.cpp
+  src/bt_nodes/listen_text_client_action.cpp
+  src/bt_nodes/extract_info_client_action.cpp
   src/text_utils.cpp
   src/bt_nodes/bt_node_registration.cpp
 )
@@ -59,7 +61,6 @@ ament_target_dependencies(bt_nodes
   simple_hri_interfaces
 )
 
-include_directories(include/bt_examples/bt_nodes)
 # Bump-and-go BT example
 add_executable(bumpandgo_bt_example src/bumpandgo_bt_example.cpp)
 target_link_libraries(bumpandgo_bt_example bt_nodes)

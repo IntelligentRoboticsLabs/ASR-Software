@@ -5,7 +5,7 @@
 #include <behaviortree_cpp/decorators/timeout_node.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-#include "bt_examples/bt_node_registration.hpp"
+#include "bt_examples/bt_nodes/bt_node_registration.hpp"
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);

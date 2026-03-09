@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bt_examples/extract_info_client_action.hpp"
+#include "bt_examples/bt_nodes/extract_info_client_action.hpp"
 
 ExtractInfoClientAction::ExtractInfoClientAction(
   const std::string & name,

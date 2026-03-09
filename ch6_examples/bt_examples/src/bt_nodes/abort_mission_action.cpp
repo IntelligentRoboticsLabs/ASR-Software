@@ -1,4 +1,4 @@
-#include "bt_examples/abort_mission_action.hpp"
+#include "bt_examples/bt_nodes/abort_mission_action.hpp"
 
 AbortMissionAction::AbortMissionAction(const std::string& name,
                                        const BT::NodeConfiguration& config,

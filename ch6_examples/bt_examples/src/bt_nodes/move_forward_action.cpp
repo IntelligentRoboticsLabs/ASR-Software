@@ -1,4 +1,4 @@
-#include "bt_examples/move_forward_action.hpp"
+#include "bt_examples/bt_nodes/move_forward_action.hpp"
 
 MoveForwardAction::MoveForwardAction(const std::string& name,
                                      const BT::NodeConfiguration& config,

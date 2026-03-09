@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bt_examples/listen_text_client_action.hpp"
+#include "bt_examples/bt_nodes/listen_text_client_action.hpp"
 
 ListenTextClientAction::ListenTextClientAction(
   const std::string & name,

@@ -1,4 +1,4 @@
-#include "bt_examples/spin_action.hpp"
+#include "bt_examples/bt_nodes/spin_action.hpp"
 
 
 SpinAction::SpinAction(const std::string& name,

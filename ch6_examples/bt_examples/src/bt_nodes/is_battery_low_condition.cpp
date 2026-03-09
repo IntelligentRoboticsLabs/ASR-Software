@@ -1,4 +1,4 @@
-#include "bt_examples/is_battery_low_condition.hpp"
+#include "bt_examples/bt_nodes/is_battery_low_condition.hpp"
 
 IsBatteryLowCondition::IsBatteryLowCondition(
     const std::string& name,

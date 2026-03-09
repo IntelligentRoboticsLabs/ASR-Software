@@ -1,4 +1,4 @@
-#include "bt_examples/is_obstacle_near_condition.hpp"
+#include "bt_examples/bt_nodes/is_obstacle_near_condition.hpp"
 #include <limits>
 
 IsObstacleNearCondition::IsObstacleNearCondition(
