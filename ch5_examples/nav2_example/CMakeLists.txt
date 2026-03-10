@@ -49,6 +49,20 @@ ament_target_dependencies(simple_navigation_app
   geometry_msgs
 )
 
+add_executable(simple_navigation_app_wait
+  src/simple_navigation_app_wait.cpp
+  src/simple_navigation_app_wait_main.cpp
+)
+
+target_link_libraries(simple_navigation_app_wait
+  navigation_client
+)
+
+ament_target_dependencies(simple_navigation_app_wait
+  rclcpp
+  geometry_msgs
+)
+
 # Install library with export
 install(TARGETS
   navigation_client
@@ -61,6 +75,7 @@ install(TARGETS
 # Install executables
 install(TARGETS
   simple_navigation_app
+  simple_navigation_app_wait
   DESTINATION lib/${PROJECT_NAME}
 )
 
