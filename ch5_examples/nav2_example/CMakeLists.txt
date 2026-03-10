@@ -14,12 +14,15 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
-# Include directories
-include_directories(include)
-
 # NavigationClient library
 add_library(navigation_client SHARED
   src/navigation_client.cpp
+)
+
+# Configure include directories for build and install
+target_include_directories(navigation_client PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
 ament_target_dependencies(navigation_client
@@ -46,9 +49,10 @@ ament_target_dependencies(simple_navigation_app
   geometry_msgs
 )
 
-# Install library
+# Install library with export
 install(TARGETS
   navigation_client
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -62,12 +66,11 @@ install(TARGETS
 
 # Install include directory
 install(DIRECTORY include/
-  DESTINATION include/
+  DESTINATION include
 )
 
-# Export information
-ament_export_include_directories(include)
-ament_export_libraries(navigation_client)
+# Export information using modern CMake
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp
   rclcpp_action
