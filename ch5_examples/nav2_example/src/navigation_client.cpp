@@ -44,21 +44,21 @@ void NavigationClient::send_goal(const geometry_msgs::msg::PoseStamped& target_p
   // FASE 2: Enviar objetivo sin bloquear, retorna inmediatamente
   // Los callbacks gestionarán la respuesta, feedback y resultado
   
-  // IMPORTANTE: Cancelar goal anterior si existe
-  // Esto evita que goals abortados interfieran con nuevos goals
-  if (goal_handle_ && (goal_active_ || !goal_done_)) {
-    RCLCPP_DEBUG(get_logger(), "Cancelando goal anterior antes de enviar nuevo");
-    nav_client_->async_cancel_goal(goal_handle_);
-    // Pequeña espera para que Nav2 procese la cancelación
-    rclcpp::sleep_for(std::chrono::milliseconds(100));
-  }
+  // // IMPORTANTE: Cancelar goal anterior si existe
+  // // Esto evita que goals abortados interfieran con nuevos goals
+  // if (goal_handle_ && (goal_active_ || !goal_done_)) {
+  //   RCLCPP_DEBUG(get_logger(), "Cancelando goal anterior antes de enviar nuevo");
+  //   nav_client_->async_cancel_goal(goal_handle_);
+  //   // Pequeña espera para que Nav2 procese la cancelación
+  //   rclcpp::sleep_for(std::chrono::milliseconds(100));
+  // }
   
-  // Resetear flags de control y limpiar handle anterior
-  goal_active_ = false;
-  goal_done_ = false;
-  goal_success_ = false;
-  goal_handle_.reset();  // Limpiar referencia al goal anterior
-  last_feedback_.reset();  // Limpiar feedback anterior
+  // // Resetear flags de control y limpiar handle anterior
+  // goal_active_ = false;
+  // goal_done_ = false;
+  // goal_success_ = false;
+  // goal_handle_.reset();  // Limpiar referencia al goal anterior
+  // last_feedback_.reset();  // Limpiar feedback anterior
 
   // Construir el mensaje de objetivo
   auto goal_msg = NavigateToPose::Goal();
