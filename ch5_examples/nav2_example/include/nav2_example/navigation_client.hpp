@@ -46,6 +46,11 @@ public:
 
   // Cancelar el objetivo en progreso
   void cancel_goal();
+  
+  // Esperar BLOQUEANDO hasta que el goal actual termine
+  // Retorna true si fue exitoso, false si falló/fue cancelado
+  // Útil para secuencias de navegación donde necesitas esperar entre goals
+  bool wait_for_result(std::chrono::seconds timeout = std::chrono::seconds(300));
 
   // Método auxiliar para crear poses
   geometry_msgs::msg::PoseStamped create_pose_stamped(double x, double y, double yaw);
