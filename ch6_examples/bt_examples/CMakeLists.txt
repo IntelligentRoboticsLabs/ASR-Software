@@ -21,12 +21,9 @@ find_package(tf2_ros REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(simple_hri_interfaces REQUIRED)
-find_package(hri_example REQUIRED)
+find_package(hri_client REQUIRED)
 
-# Include directories
-include_directories(include)
-
- # BT node implementations library
+# BT node implementations library
 add_library(bt_nodes SHARED
   src/bt_nodes/is_obstacle_near_condition.cpp
   src/bt_nodes/is_battery_low_condition.cpp
@@ -47,64 +44,76 @@ add_library(bt_nodes SHARED
   src/bt_nodes/bt_node_registration.cpp
 )
 
-ament_target_dependencies(bt_nodes
-  rclcpp
-  rclcpp_action
-  std_msgs
-  std_srvs
-  sensor_msgs
-  geometry_msgs
-  tf2_ros
-  hri_example
-  nav2_msgs
-  behaviortree_cpp
-  simple_hri_interfaces
+target_include_directories(bt_nodes PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(bt_nodes PUBLIC
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  ${std_msgs_TARGETS}
+  ${std_srvs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${geometry_msgs_TARGETS}
+  tf2_ros::tf2_ros
+  hri_client::hri_client
+  ${nav2_msgs_TARGETS}
+  behaviortree_cpp::behaviortree_cpp
+  ${simple_hri_interfaces_TARGETS}
 )
 
 # Bump-and-go BT example
 add_executable(bumpandgo_bt_example src/bumpandgo_bt_example.cpp)
-target_link_libraries(bumpandgo_bt_example bt_nodes)
-ament_target_dependencies(bumpandgo_bt_example
-  rclcpp
-  std_msgs
-  sensor_msgs
-  geometry_msgs
-  tf2_ros
-  ament_index_cpp
-  behaviortree_cpp
+target_link_libraries(bumpandgo_bt_example
+  bt_nodes
+  rclcpp::rclcpp
+  ${std_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${geometry_msgs_TARGETS}
+  tf2_ros::tf2_ros
+  ament_index_cpp::ament_index_cpp
+  behaviortree_cpp::behaviortree_cpp
 )
 
 # Drink order BT example
 add_executable(drink_order_bt_example src/drink_order_bt_example.cpp)
-target_link_libraries(drink_order_bt_example bt_nodes)
-ament_target_dependencies(drink_order_bt_example
-  rclcpp
-  rclcpp_action
-  std_msgs
-  ament_index_cpp
-  behaviortree_cpp
-  simple_hri_interfaces
+target_link_libraries(drink_order_bt_example
+  bt_nodes
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  ${std_msgs_TARGETS}
+  ament_index_cpp::ament_index_cpp
+  behaviortree_cpp::behaviortree_cpp
+  ${simple_hri_interfaces_TARGETS}
 )
 
 # Drink order BT example with HRIClient
 add_executable(drink_order_client_bt_example src/drink_order_client_bt_example.cpp)
-target_link_libraries(drink_order_client_bt_example bt_nodes)
-ament_target_dependencies(drink_order_client_bt_example
-  rclcpp
-  ament_index_cpp
-  behaviortree_cpp
-  hri_example
+target_link_libraries(drink_order_client_bt_example
+  bt_nodes
+  rclcpp::rclcpp
+  ament_index_cpp::ament_index_cpp
+  behaviortree_cpp::behaviortree_cpp
+  hri_client::hri_client
 )
 
 # Battery simulator node (for BT)
 add_executable(battery_simulator src/battery_simulator.cpp)
-ament_target_dependencies(battery_simulator
-  rclcpp
-  sensor_msgs
+
+target_include_directories(battery_simulator PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(battery_simulator
+  rclcpp::rclcpp
+  ${sensor_msgs_TARGETS}
 )
 
 # Install library
 install(TARGETS bt_nodes
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

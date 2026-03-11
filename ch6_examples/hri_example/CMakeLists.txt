@@ -8,24 +8,8 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_srvs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(simple_hri_interfaces REQUIRED)
-
-# Include directories
-include_directories(include)
-
-# HRIClient library
-add_library(hri_client SHARED
-  src/hri_client.cpp
-)
-
-ament_target_dependencies(hri_client
-  rclcpp
-  std_srvs
-  std_msgs
-  simple_hri_interfaces
-)
+find_package(hri_client REQUIRED)
 
 # Simple HRI app executable
 add_executable(simple_hri_app
@@ -33,42 +17,21 @@ add_executable(simple_hri_app
   src/simple_hri_app_main.cpp
 )
 
+target_include_directories(simple_hri_app PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 target_link_libraries(simple_hri_app
-  hri_client
-)
-
-ament_target_dependencies(simple_hri_app
-  rclcpp
-  std_msgs
-)
-
-# Install library
-install(TARGETS
-  hri_client
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
+  rclcpp::rclcpp
+  ${std_msgs_TARGETS}
+  hri_client::hri_client
 )
 
 # Install executables
 install(TARGETS
   simple_hri_app
   DESTINATION lib/${PROJECT_NAME}
-)
-
-# Install include directory
-install(DIRECTORY include/
-  DESTINATION include/
-)
-
-# Export information
-ament_export_include_directories(include)
-ament_export_libraries(hri_client)
-ament_export_dependencies(
-  rclcpp
-  std_srvs
-  std_msgs
-  simple_hri_interfaces
 )
 
 if(BUILD_TESTING)

@@ -8,31 +8,8 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(rclcpp_action REQUIRED)
-find_package(nav2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
-
-# NavigationClient library
-add_library(navigation_client SHARED
-  src/navigation_client.cpp
-)
-
-# Configure include directories for build and install
-target_include_directories(navigation_client PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
-ament_target_dependencies(navigation_client
-  rclcpp
-  rclcpp_action
-  nav2_msgs
-  geometry_msgs
-  tf2
-  tf2_geometry_msgs
-)
+find_package(navigation_client REQUIRED)
 
 # Simple navigation app executable
 add_executable(simple_navigation_app
@@ -40,13 +17,15 @@ add_executable(simple_navigation_app
   src/simple_navigation_app_main.cpp
 )
 
-target_link_libraries(simple_navigation_app
-  navigation_client
+target_include_directories(simple_navigation_app PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
-ament_target_dependencies(simple_navigation_app
-  rclcpp
-  geometry_msgs
+target_link_libraries(simple_navigation_app
+  rclcpp::rclcpp
+  ${geometry_msgs_TARGETS}
+  navigation_client::navigation_client
 )
 
 add_executable(simple_navigation_app_wait
@@ -54,22 +33,15 @@ add_executable(simple_navigation_app_wait
   src/simple_navigation_app_wait_main.cpp
 )
 
+target_include_directories(simple_navigation_app_wait PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 target_link_libraries(simple_navigation_app_wait
-  navigation_client
-)
-
-ament_target_dependencies(simple_navigation_app_wait
-  rclcpp
-  geometry_msgs
-)
-
-# Install library with export
-install(TARGETS
-  navigation_client
-  EXPORT export_${PROJECT_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
+  rclcpp::rclcpp
+  ${geometry_msgs_TARGETS}
+  navigation_client::navigation_client
 )
 
 # Install executables
@@ -77,22 +49,6 @@ install(TARGETS
   simple_navigation_app
   simple_navigation_app_wait
   DESTINATION lib/${PROJECT_NAME}
-)
-
-# Install include directory
-install(DIRECTORY include/
-  DESTINATION include
-)
-
-# Export information using modern CMake
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(
-  rclcpp
-  rclcpp_action
-  nav2_msgs
-  geometry_msgs
-  tf2
-  tf2_geometry_msgs
 )
 
 if(BUILD_TESTING)

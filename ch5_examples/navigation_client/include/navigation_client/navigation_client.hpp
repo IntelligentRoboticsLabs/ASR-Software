@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NAV2_EXAMPLE__NAVIGATION_CLIENT_HPP_
-#define NAV2_EXAMPLE__NAVIGATION_CLIENT_HPP_
+#ifndef NAVIGATION_CLIENT__NAVIGATION_CLIENT_HPP_
+#define NAVIGATION_CLIENT__NAVIGATION_CLIENT_HPP_
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -80,4 +80,4 @@ private:
   std::shared_ptr<const NavigateToPose::Feedback> last_feedback_;
 };
 
-#endif  // NAV2_EXAMPLE__NAVIGATION_CLIENT_HPP_
+#endif  // NAVIGATION_CLIENT__NAVIGATION_CLIENT_HPP_

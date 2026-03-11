@@ -17,7 +17,7 @@
 
 #include <mutex>
 #include "rclcpp/rclcpp.hpp"
-#include "hri_example/hri_client.hpp"
+#include "hri_client/hri_client.hpp"
 
 class SimpleHRIApp : public rclcpp::Node
 {

@@ -16,7 +16,7 @@
 #define NAV2_EXAMPLE__SIMPLE_NAVIGATION_APP_WAIT_HPP_
 
 #include "rclcpp/rclcpp.hpp"
-#include "nav2_example/navigation_client.hpp"
+#include "navigation_client/navigation_client.hpp"
 
 class SimpleNavigationAppWait : public rclcpp::Node
 {

@@ -17,7 +17,7 @@
 
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
-#include "hri_example/hri_client.hpp"
+#include "hri_client/hri_client.hpp"
 
 class SayTextClientAction : public BT::StatefulActionNode
 {

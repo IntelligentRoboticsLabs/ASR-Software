@@ -17,7 +17,7 @@
 #include <behaviortree_cpp/loggers/bt_cout_logger.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-#include "hri_example/hri_client.hpp"
+#include "hri_client/hri_client.hpp"
 #include "bt_examples/bt_nodes/bt_node_registration.hpp"
 
 int main(int argc, char** argv) {

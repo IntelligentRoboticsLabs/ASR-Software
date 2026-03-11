@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HRI_EXAMPLE__HRI_CLIENT_HPP_
-#define HRI_EXAMPLE__HRI_CLIENT_HPP_
+#ifndef HRI_CLIENT__HRI_CLIENT_HPP_
+#define HRI_CLIENT__HRI_CLIENT_HPP_
 
 #include <chrono>
 #include <optional>
@@ -119,4 +119,4 @@ private:
   std::optional<rclcpp::Client<simple_hri_interfaces::srv::YesNo>::FutureAndRequestId> yesno_future_;
 };
 
-#endif  // HRI_EXAMPLE__HRI_CLIENT_HPP_
+#endif  // HRI_CLIENT__HRI_CLIENT_HPP_

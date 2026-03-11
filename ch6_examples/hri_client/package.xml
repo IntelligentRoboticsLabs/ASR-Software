@@ -1,17 +1,18 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>hri_example</name>
+  <name>hri_client</name>
   <version>1.0.0</version>
-  <description>Ejemplos de uso de simple_hri service clients</description>
+  <description>Cliente reutilizable para servicios de simple_hri (STT, TTS, Extract, YesNo)</description>
   <maintainer email="user@todo.todo">ASR Course</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
   <depend>std_msgs</depend>
-  <depend>hri_client</depend>
+  <depend>simple_hri_interfaces</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "hri_example/hri_client.hpp"
+#include "hri_client/hri_client.hpp"
 
 HRIClient::HRIClient()
 : Node("hri_client")

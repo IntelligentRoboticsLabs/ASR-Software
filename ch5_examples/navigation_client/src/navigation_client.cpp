@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nav2_example/navigation_client.hpp"
+#include "navigation_client/navigation_client.hpp"
 
 NavigationClient::NavigationClient()
 : Node("navigation_client")
@@ -54,11 +54,11 @@ void NavigationClient::send_goal(const geometry_msgs::msg::PoseStamped& target_p
   // }
   
   // // Resetear flags de control y limpiar handle anterior
-  // goal_active_ = false;
-  // goal_done_ = false;
-  // goal_success_ = false;
-  // goal_handle_.reset();  // Limpiar referencia al goal anterior
-  // last_feedback_.reset();  // Limpiar feedback anterior
+  goal_active_ = false;
+  goal_done_ = false;
+  goal_success_ = false;
+  goal_handle_.reset();  // Limpiar referencia al goal anterior
+  last_feedback_.reset();  // Limpiar feedback anterior
 
   // Construir el mensaje de objetivo
   auto goal_msg = NavigateToPose::Goal();

@@ -30,7 +30,7 @@ private:
   tf2_ros::TransformListener tf_listener_;
   double charger_x_;
   double charger_y_;
-  // nav2 action client
+  // nav2 action client (no se utiliza navigation_client para tener ejemplos de ambos tipos llamadas a la acción)
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr action_client_;
   std::shared_future<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr> goal_handle_future_;
   bool goal_sent_;

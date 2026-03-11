@@ -17,7 +17,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav2_example/navigation_client.hpp"
+#include "navigation_client/navigation_client.hpp"
 
 class SimpleNavigationApp : public rclcpp::Node
 {
