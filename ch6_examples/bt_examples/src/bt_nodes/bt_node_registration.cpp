@@ -15,7 +15,7 @@
 
 void register_bt_nodes(BT::BehaviorTreeFactory& factory) {
   // Registrar nodos que obtienen 'node' y 'hri_client' de la blackboard
-  // Ya no necesitamos lambdas - registerNodeType lo hace automáticamente
+  // No se necesitan lambdas al no necesitar pasar argumentos adicionales al constructor
   factory.registerNodeType<IsObstacleNearCondition>("IsObstacleNear");
   factory.registerNodeType<IsBatteryLowCondition>("IsBatteryLow");
   factory.registerNodeType<BackUpAction>("BackUp");
