@@ -1,9 +1,11 @@
 #include "bt_examples/bt_nodes/move_forward_action.hpp"
 
 MoveForwardAction::MoveForwardAction(const std::string& name,
-                                     const BT::NodeConfiguration& config,
-                                     rclcpp::Node::SharedPtr node)
-  : BT::SyncActionNode(name, config), node_(node) {
+                                     const BT::NodeConfiguration& config)
+  : BT::SyncActionNode(name, config) {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>(
     "cmd_vel", 10);
 }

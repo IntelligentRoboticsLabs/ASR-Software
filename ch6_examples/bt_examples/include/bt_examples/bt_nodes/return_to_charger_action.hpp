@@ -14,8 +14,7 @@
 class ReturnToChargerAction : public BT::StatefulActionNode {
 public:
   ReturnToChargerAction(const std::string& name,
-                        const BT::NodeConfiguration& config,
-                        rclcpp::Node::SharedPtr node);
+                        const BT::NodeConfiguration& config);
   
   static BT::PortsList providedPorts();
   BT::NodeStatus onStart() override;
@@ -26,8 +25,16 @@ private:
   rclcpp::Node::SharedPtr node_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr robot_in_charger_pub_;
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
+  
+  // tf_buffer_ y tf_listener_ se declaran como unique_ptr porque:
+  // - tf2_ros::Buffer requiere un clock válido en su construcción (no tiene constructor por defecto)
+  // - El node_ (que proporciona el clock) solo está disponible después de obtenerlo
+  //   de la blackboard en el cuerpo del constructor
+  // - No podemos usar la lista de inicialización (:) porque config.blackboard no es
+  //   accesible hasta dentro del cuerpo del constructor
+  // - unique_ptr permite construir el objeto más tarde con make_unique
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
   double charger_x_;
   double charger_y_;
   // nav2 action client (no se utiliza navigation_client para tener ejemplos de ambos tipos llamadas a la acción)

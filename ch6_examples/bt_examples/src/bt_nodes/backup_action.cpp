@@ -2,10 +2,12 @@
 #include <algorithm>
 
 BackUpAction::BackUpAction(const std::string& name,
-                           const BT::NodeConfiguration& config,
-                           rclcpp::Node::SharedPtr node)
-  : BT::StatefulActionNode(name, config), node_(node),
+                           const BT::NodeConfiguration& config)
+  : BT::StatefulActionNode(name, config),
     duration_(0, 0) {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>(
     "cmd_vel", 10);
 }

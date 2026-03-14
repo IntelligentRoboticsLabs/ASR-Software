@@ -16,11 +16,12 @@
 
 ListenTextClientAction::ListenTextClientAction(
   const std::string & name,
-  const BT::NodeConfig & config,
-  std::shared_ptr<HRIClient> hri_client)
-: BT::StatefulActionNode(name, config),
-  hri_client_(hri_client)
+  const BT::NodeConfig & config)
+: BT::StatefulActionNode(name, config)
 {
+  if (!config.blackboard->get("hri_client", hri_client_)) {
+    throw BT::RuntimeError("Missing required hri_client in blackboard");
+  }
 }
 
 BT::NodeStatus ListenTextClientAction::onStart()

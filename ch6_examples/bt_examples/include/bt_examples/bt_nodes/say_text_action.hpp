@@ -27,8 +27,7 @@ public:
 
   SayTextAction(
     const std::string & name,
-    const BT::NodeConfig & config,
-    rclcpp::Node::SharedPtr node);
+    const BT::NodeConfig & config);
 
   static BT::PortsList providedPorts()
   {

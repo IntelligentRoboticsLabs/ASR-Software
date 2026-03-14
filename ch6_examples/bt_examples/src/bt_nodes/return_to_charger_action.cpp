@@ -4,14 +4,23 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 
 ReturnToChargerAction::ReturnToChargerAction(const std::string& name,
-                                             const BT::NodeConfiguration& config,
-                                             rclcpp::Node::SharedPtr node)
-  : BT::StatefulActionNode(name, config), node_(node),
-
-    tf_buffer_(node_->get_clock()),
-    tf_listener_(tf_buffer_),
+                                             const BT::NodeConfiguration& config)
+  : BT::StatefulActionNode(name, config),
     goal_sent_(false),
     result_received_(false) {
+  // Obtener el nodo de la blackboard
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
+  
+  // Inicializar tf_buffer_ y tf_listener_ DESPUÉS de obtener node_
+  // Si el constructor recibiera node_ como argumento, podríamos inicializarlos en la lista de inicialización (:), pero como el nodo solo está disponible dentro del cuerpo del constructor, debemos usar unique_ptr para construirlos aquí.
+  // Ahora, como node_ solo está disponible tras obtenerlo de la blackboard,
+  // debemos usar unique_ptr para construir los objetos aquí en el cuerpo del constructor.
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());
+  tf_buffer_->setUsingDedicatedThread(true);
+  tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
+  
   robot_in_charger_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/robot_in_charger", 1);
   using namespace std::placeholders;
   action_client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(

@@ -24,8 +24,7 @@ class ExtractInfoClientAction : public BT::StatefulActionNode
 public:
   ExtractInfoClientAction(
     const std::string & name,
-    const BT::NodeConfig & config,
-    std::shared_ptr<HRIClient> hri_client);
+    const BT::NodeConfig & config);
 
   static BT::PortsList providedPorts()
   {

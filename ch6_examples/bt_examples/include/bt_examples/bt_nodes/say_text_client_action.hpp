@@ -24,8 +24,7 @@ class SayTextClientAction : public BT::StatefulActionNode
 public:
   SayTextClientAction(
     const std::string & name,
-    const BT::NodeConfig & config,
-    std::shared_ptr<HRIClient> hri_client);
+    const BT::NodeConfig & config);
 
   static BT::PortsList providedPorts()
   {

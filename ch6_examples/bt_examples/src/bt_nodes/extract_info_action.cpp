@@ -16,11 +16,12 @@
 
 ExtractInfoAction::ExtractInfoAction(
   const std::string & name,
-  const BT::NodeConfig & config,
-  rclcpp::Node::SharedPtr node)
-: BT::StatefulActionNode(name, config),
-  node_(node)
+  const BT::NodeConfig & config)
+: BT::StatefulActionNode(name, config)
 {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   extract_client_ = node_->create_client<Extract>("/extract_service");
 }
 

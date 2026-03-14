@@ -9,8 +9,7 @@
 class BackUpAction : public BT::StatefulActionNode {
 public:
   BackUpAction(const std::string& name,
-               const BT::NodeConfiguration& config,
-               rclcpp::Node::SharedPtr node);
+               const BT::NodeConfiguration& config);
   
   static BT::PortsList providedPorts();
   

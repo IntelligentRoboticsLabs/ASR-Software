@@ -9,8 +9,7 @@
 class MoveForwardAction : public BT::SyncActionNode {
 public:
   MoveForwardAction(const std::string& name,
-                    const BT::NodeConfiguration& config,
-                    rclcpp::Node::SharedPtr node);
+                    const BT::NodeConfiguration& config);
   
   static BT::PortsList providedPorts();
   BT::NodeStatus tick() override;

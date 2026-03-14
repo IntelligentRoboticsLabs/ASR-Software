@@ -9,8 +9,7 @@
 class IsBatteryLowCondition : public BT::ConditionNode {
 public:
   IsBatteryLowCondition(const std::string& name,
-                        const BT::NodeConfiguration& config,
-                        rclcpp::Node::SharedPtr node);
+                        const BT::NodeConfiguration& config);
   
   static BT::PortsList providedPorts();
   BT::NodeStatus tick() override;

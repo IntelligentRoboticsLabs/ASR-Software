@@ -15,25 +15,27 @@ int main(int argc, char** argv) {
   BT::BehaviorTreeFactory factory;
   
   // Registrar nodos personalizados
-  register_bt_nodes(factory, node);
+  register_bt_nodes(factory);
   
-  // Obtener path al archivo XML
-  std::string package_share_dir = ament_index_cpp::get_package_share_directory("bt_examples");
-  std::string tree_path = package_share_dir + "/config/bumpandgo_tree.xml";
-  
-  // Cargar árbol desde XML
-  auto tree = factory.createTreeFromFile(tree_path);
-  
-  // Leer parámetros ROS y establecer en el blackboard GLOBAL
+  // Leer parámetros ROS
   node->declare_parameter("charger_x", 0.0);
   node->declare_parameter("charger_y", 0.0);
   
   double charger_x = node->get_parameter("charger_x").as_double();
   double charger_y = node->get_parameter("charger_y").as_double();
   
-  tree.subtrees[0]->blackboard->set("charger_x", charger_x);
-  tree.subtrees[0]->blackboard->set("charger_y", charger_y);
-  tree.subtrees[0]->blackboard->set("node", node);
+  // Crear blackboard y poner recursos ANTES de crear el árbol
+  auto blackboard = BT::Blackboard::create();
+  blackboard->set("node", node);
+  blackboard->set("charger_x", charger_x);
+  blackboard->set("charger_y", charger_y);
+  
+  // Obtener path al archivo XML
+  std::string package_share_dir = ament_index_cpp::get_package_share_directory("bt_examples");
+  std::string tree_path = package_share_dir + "/config/bumpandgo_tree.xml";
+  
+  // Cargar árbol desde XML con la blackboard que contiene los recursos
+  auto tree = factory.createTreeFromFile(tree_path, blackboard);
   
   // Logger para depuración
   BT::StdCoutLogger logger(tree);

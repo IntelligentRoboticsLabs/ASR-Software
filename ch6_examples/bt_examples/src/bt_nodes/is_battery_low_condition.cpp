@@ -2,9 +2,11 @@
 
 IsBatteryLowCondition::IsBatteryLowCondition(
     const std::string& name,
-    const BT::NodeConfiguration& config,
-    rclcpp::Node::SharedPtr node)
-  : BT::ConditionNode(name, config), node_(node) {
+    const BT::NodeConfiguration& config)
+  : BT::ConditionNode(name, config) {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   battery_sub_ = node_->create_subscription<sensor_msgs::msg::BatteryState>(
     "battery_state", 10,
     [this](const sensor_msgs::msg::BatteryState::SharedPtr msg) {

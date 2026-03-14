@@ -9,8 +9,7 @@
 class SpinAction : public BT::StatefulActionNode {
 public:
   SpinAction(const std::string& name,
-             const BT::NodeConfiguration& config,
-             rclcpp::Node::SharedPtr node);
+             const BT::NodeConfiguration& config);
   
   static BT::PortsList providedPorts();
   

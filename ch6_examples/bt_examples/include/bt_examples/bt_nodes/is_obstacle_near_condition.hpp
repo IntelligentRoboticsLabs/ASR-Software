@@ -9,8 +9,7 @@
 class IsObstacleNearCondition : public BT::ConditionNode {
 public:
   IsObstacleNearCondition(const std::string& name,
-                         const BT::NodeConfiguration& config,
-                         rclcpp::Node::SharedPtr node);
+                         const BT::NodeConfiguration& config);
   
   static BT::PortsList providedPorts();
   
