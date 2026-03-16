@@ -24,15 +24,12 @@ int main(int argc, char** argv)
   // Patrón: Código bloqueante en constructor es aceptable para apps simples
   auto app = std::make_shared<SimpleNavigationAppWait>();
   
-  // Crear executor para manejar múltiples nodos
-  rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(app);
-  executor.add_node(app->get_navigation_client());
-  
+  // Solo necesitamos un nodo en el executor
+  // NavigationClient ahora es un componente que usa el nodo de la app
   // Spin para mantener el nodo vivo y procesar callbacks residuales
   // En este caso no es estrictamente necesario porque wait_for_result()
   // ya procesa callbacks internamente, pero es buena práctica
-  executor.spin();
+  rclcpp::spin(app);
   
   // Cleanup
   rclcpp::shutdown();

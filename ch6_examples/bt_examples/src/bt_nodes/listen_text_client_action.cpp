@@ -19,6 +19,9 @@ ListenTextClientAction::ListenTextClientAction(
   const BT::NodeConfig & config)
 : BT::StatefulActionNode(name, config)
 {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   if (!config.blackboard->get("hri_client", hri_client_)) {
     throw BT::RuntimeError("Missing required hri_client in blackboard");
   }
@@ -26,7 +29,7 @@ ListenTextClientAction::ListenTextClientAction(
 
 BT::NodeStatus ListenTextClientAction::onStart()
 {
-  RCLCPP_INFO(hri_client_->get_logger(), "Listening for speech...");
+  RCLCPP_INFO(node_->get_logger(), "Listening for speech...");
 
   // Usar HRIClient para iniciar STT
   hri_client_->start_listen();
@@ -40,7 +43,7 @@ BT::NodeStatus ListenTextClientAction::onRunning()
   // Verificar timeout (60 segundos, el STT puede tardar más)
   auto elapsed = std::chrono::steady_clock::now() - start_time_;
   if (elapsed > std::chrono::seconds(60)) {
-    RCLCPP_ERROR(hri_client_->get_logger(), "STT operation timeout");
+    RCLCPP_ERROR(node_->get_logger(), "STT operation timeout");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -49,11 +52,11 @@ BT::NodeStatus ListenTextClientAction::onRunning()
     std::string recognized_text = hri_client_->get_listened_text();
     
     if (recognized_text.empty()) {
-      RCLCPP_ERROR(hri_client_->get_logger(), "STT operation returned empty text");
+      RCLCPP_ERROR(node_->get_logger(), "STT operation returned empty text");
       return BT::NodeStatus::FAILURE;
     }
 
-    RCLCPP_INFO(hri_client_->get_logger(), "Recognized: '%s'", recognized_text.c_str());
+    RCLCPP_INFO(node_->get_logger(), "Recognized: '%s'", recognized_text.c_str());
     
     // Escribir el texto reconocido en el puerto de salida
     setOutput("recognized_text", recognized_text);
@@ -66,5 +69,5 @@ BT::NodeStatus ListenTextClientAction::onRunning()
 
 void ListenTextClientAction::onHalted()
 {
-  RCLCPP_WARN(hri_client_->get_logger(), "STT action halted");
+  RCLCPP_WARN(node_->get_logger(), "STT action halted");
 }

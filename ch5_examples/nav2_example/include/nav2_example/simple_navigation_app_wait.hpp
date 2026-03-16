@@ -22,9 +22,6 @@ class SimpleNavigationAppWait : public rclcpp::Node
 {
 public:
   SimpleNavigationAppWait();
-  
-  // Método para obtener el cliente de navegación (necesario para el executor)
-  std::shared_ptr<NavigationClient> get_navigation_client() { return nav_client_; }
 
 private:
   std::shared_ptr<NavigationClient> nav_client_;

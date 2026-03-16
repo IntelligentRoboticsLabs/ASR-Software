@@ -40,6 +40,7 @@ public:
 private:
   std::string formatText(const std::string & text);
   
+  std::shared_ptr<rclcpp::Node> node_;
   std::shared_ptr<HRIClient> hri_client_;
   std::chrono::steady_clock::time_point start_time_;
 };

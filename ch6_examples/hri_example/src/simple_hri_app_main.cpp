@@ -22,13 +22,9 @@ int main(int argc, char * argv[])
   // Crear la aplicación principal
   auto app = std::make_shared<SimpleHRIApp>();
   
-  // Crear un executor para manejar ambos nodos
-  rclcpp::executors::MultiThreadedExecutor executor;
-  executor.add_node(app);
-  executor.add_node(app->get_hri_client());
-
-  // Spin
-  executor.spin();
+  // Solo necesitamos un nodo en el executor
+  // HRIClient ahora es un componente que usa el nodo de la app
+  rclcpp::spin(app);
 
   rclcpp::shutdown();
   return 0;

@@ -21,12 +21,9 @@ int main(int argc, char** argv)
   
   auto app = std::make_shared<SimpleNavigationApp>();
   
-  // Crear executor para manejar múltiples nodos
-  rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(app);
-  executor.add_node(app->get_navigation_client());
-  
-  executor.spin();
+  // Solo necesitamos un nodo en el executor
+  // NavigationClient ahora es un componente que usa el nodo de la app
+  rclcpp::spin(app);
   
   rclcpp::shutdown();
   return 0;

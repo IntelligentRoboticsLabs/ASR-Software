@@ -18,9 +18,12 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
 : Node("simple_navigation_app_wait")
 {
     // 1. Composición: La aplicación TIENE UN NavigationClient
-    nav_client_ = std::make_shared<NavigationClient>();
+    //    Úso de 'this': Pasamos el puntero del nodo directamente
+    //    - Seguro porque el cliente es miembro del nodo (mismo ciclo de vida)
+    //    - No podemos usar shared_from_this() en el constructor
+    nav_client_ = std::make_shared<NavigationClient>(this);
     
-    RCLCPP_INFO(get_logger(), "=== Aplicación de navegación BLOQUEANTE iniciada ===");
+    RCLCPP_INFO(get_logger(), "=== Aplicación de navegación BLOQUEANTE iniciada ===");;
     
     // 2. FASE 1: Verificar disponibilidad de Nav2
     RCLCPP_INFO(get_logger(), "Esperando a que Nav2 esté disponible...");

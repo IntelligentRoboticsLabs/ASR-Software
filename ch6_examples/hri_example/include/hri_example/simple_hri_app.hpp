@@ -23,9 +23,6 @@ class SimpleHRIApp : public rclcpp::Node
 {
 public:
   SimpleHRIApp();
-  
-  // Método para obtener el cliente HRI (necesario para el executor)
-  std::shared_ptr<HRIClient> get_hri_client() { return hri_client_; }
 
 private:
   void control_cycle();

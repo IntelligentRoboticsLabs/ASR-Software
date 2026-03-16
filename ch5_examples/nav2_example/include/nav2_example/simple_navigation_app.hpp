@@ -23,9 +23,6 @@ class SimpleNavigationApp : public rclcpp::Node
 {
 public:
   SimpleNavigationApp();
-  
-  // Método para obtener el cliente de navegación (necesario para el executor)
-  std::shared_ptr<NavigationClient> get_navigation_client() { return nav_client_; }
 
 private:
   void control_cycle();

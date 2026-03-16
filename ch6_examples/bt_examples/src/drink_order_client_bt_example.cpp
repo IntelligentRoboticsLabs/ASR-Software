@@ -24,8 +24,11 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<rclcpp::Node>("drink_order_client_bt");
   
-  // Crear el cliente HRI
-  auto hri_client = std::make_shared<HRIClient>();
+  // Crear el cliente HRI usando el patrón de composición
+  // Uso de node.get(): Obtenemos el puntero raw del shared_ptr
+  // - Necesario porque HRIClient acepta rclcpp::Node* (puntero raw)
+  // - Seguro porque el nodo (node) vive durante toda la ejecución
+  auto hri_client = std::make_shared<HRIClient>(node.get());
   
   // Esperar a que los servicios estén disponibles
   RCLCPP_INFO(node->get_logger(), "Waiting for HRI services...");
@@ -65,9 +68,8 @@ int main(int argc, char** argv) {
   BT::NodeStatus status = BT::NodeStatus::IDLE;
   
   while (rclcpp::ok()) {
-    // Procesar callbacks de ROS (importante para que HRIClient reciba mensajes)
+    // Procesar callbacks de ROS
     rclcpp::spin_some(node);
-    rclcpp::spin_some(hri_client);
     
     // Evaluar árbol
     status = tree.tickOnce();

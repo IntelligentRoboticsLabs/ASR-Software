@@ -17,8 +17,12 @@
 SimpleHRIApp::SimpleHRIApp()
 : Node("simple_hri_app")
 {
-  // Crear el cliente HRI como componente
-  hri_client_ = std::make_shared<HRIClient>();
+  // Crear el cliente HRI como componente (patrón de composición)
+  // Úso de 'this': Pasamos el puntero del nodo directamente
+  // - Es seguro porque el cliente es miembro del nodo (mismo ciclo de vida)
+  // - No podemos usar shared_from_this() en el constructor
+  // - El cliente usará este nodo para crear clientes, suscriptores, logging, etc.
+  hri_client_ = std::make_shared<HRIClient>(this);
   
   RCLCPP_INFO(get_logger(), "Aplicación HRI iniciada");
   

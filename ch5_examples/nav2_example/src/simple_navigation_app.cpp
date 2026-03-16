@@ -19,7 +19,11 @@ SimpleNavigationApp::SimpleNavigationApp()
 {
   // 1. Composición: La aplicación TIENE UN NavigationClient (no hereda)
   //    Patrón: Usar capacidades como componentes en lugar de herencias múltiples
-  nav_client_ = std::make_shared<NavigationClient>();
+  //    Úso de 'this': Pasamos el puntero del nodo directamente al cliente
+  //    - Es seguro porque el cliente es miembro del nodo (mismo ciclo de vida)
+  //    - No podemos usar shared_from_this() en el constructor
+  //    - El cliente usará este nodo para crear clientes, timers, logging, etc.
+  nav_client_ = std::make_shared<NavigationClient>(this);
   
   // 2. Usar create_pose_stamped() para construir el objetivo
   //    Método auxiliar: simplifica crear poses sin quaterniones manuales

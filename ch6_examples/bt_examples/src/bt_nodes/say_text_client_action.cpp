@@ -20,6 +20,9 @@ SayTextClientAction::SayTextClientAction(
   const BT::NodeConfig & config)
 : BT::StatefulActionNode(name, config)
 {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   if (!config.blackboard->get("hri_client", hri_client_)) {
     throw BT::RuntimeError("Missing required hri_client in blackboard");
   }
@@ -35,14 +38,14 @@ BT::NodeStatus SayTextClientAction::onStart()
   // Obtener el texto a decir del puerto de entrada
   std::string text;
   if (!getInput("text", text)) {
-    RCLCPP_ERROR(hri_client_->get_logger(), "SayTextClientAction: 'text' input port is required");
+    RCLCPP_ERROR(node_->get_logger(), "SayTextClientAction: 'text' input port is required");
     return BT::NodeStatus::FAILURE;
   }
 
   // Formatear el texto (expandir variables del blackboard y formatear listas)
   text = formatText(text);
 
-  RCLCPP_INFO(hri_client_->get_logger(), "Saying: '%s'", text.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Saying: '%s'", text.c_str());
 
   // Usar HRIClient para iniciar TTS
   hri_client_->start_speaking(text);
@@ -56,17 +59,17 @@ BT::NodeStatus SayTextClientAction::onRunning()
   // Verificar timeout (30 segundos)
   auto elapsed = std::chrono::steady_clock::now() - start_time_;
   if (elapsed > std::chrono::seconds(30)) {
-    RCLCPP_ERROR(hri_client_->get_logger(), "TTS operation timeout");
+    RCLCPP_ERROR(node_->get_logger(), "TTS operation timeout");
     return BT::NodeStatus::FAILURE;
   }
 
   // Verificar si HRIClient terminó de hablar
   if (hri_client_->is_speaking_done()) {
     if (hri_client_->get_speaking_result()) {
-      RCLCPP_INFO(hri_client_->get_logger(), "TTS completed successfully");
+      RCLCPP_INFO(node_->get_logger(), "TTS completed successfully");
       return BT::NodeStatus::SUCCESS;
     } else {
-      RCLCPP_ERROR(hri_client_->get_logger(), "TTS operation failed");
+      RCLCPP_ERROR(node_->get_logger(), "TTS operation failed");
       return BT::NodeStatus::FAILURE;
     }
   }
@@ -76,5 +79,5 @@ BT::NodeStatus SayTextClientAction::onRunning()
 
 void SayTextClientAction::onHalted()
 {
-  RCLCPP_WARN(hri_client_->get_logger(), "TTS action halted");
+  RCLCPP_WARN(node_->get_logger(), "TTS action halted");
 }

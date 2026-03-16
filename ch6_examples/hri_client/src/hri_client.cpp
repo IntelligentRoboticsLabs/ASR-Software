@@ -14,22 +14,22 @@
 
 #include "hri_client/hri_client.hpp"
 
-HRIClient::HRIClient()
-: Node("hri_client")
+HRIClient::HRIClient(rclcpp::Node* node)
+: node_(node)
 {
   // Crear los clientes de servicios
-  stt_client_ = create_client<std_srvs::srv::SetBool>("/stt_service");
-  tts_client_ = create_client<simple_hri_interfaces::srv::Speech>("/tts_service");
-  extract_client_ = create_client<simple_hri_interfaces::srv::Extract>("/extract_service");
-  yesno_client_ = create_client<simple_hri_interfaces::srv::YesNo>("/yesno_service");
+  stt_client_ = node_->create_client<std_srvs::srv::SetBool>("/stt_service");
+  tts_client_ = node_->create_client<simple_hri_interfaces::srv::Speech>("/tts_service");
+  extract_client_ = node_->create_client<simple_hri_interfaces::srv::Extract>("/extract_service");
+  yesno_client_ = node_->create_client<simple_hri_interfaces::srv::YesNo>("/yesno_service");
 
   // Suscribirse al topic de texto escuchado
-  listened_text_sub_ = create_subscription<std_msgs::msg::String>(
+  listened_text_sub_ = node_->create_subscription<std_msgs::msg::String>(
     "/listened_text",
     10,
     std::bind(&HRIClient::listened_text_callback, this, std::placeholders::_1));
 
-  RCLCPP_DEBUG(get_logger(), "Cliente HRI inicializado");
+  RCLCPP_DEBUG(node_->get_logger(), "Cliente HRI inicializado");
 }
 
 bool HRIClient::wait_for_services(std::chrono::seconds timeout)
@@ -37,27 +37,27 @@ bool HRIClient::wait_for_services(std::chrono::seconds timeout)
   bool all_ready = true;
 
   if (!stt_client_->wait_for_service(timeout)) {
-    RCLCPP_ERROR(get_logger(), "Servicio STT no disponible");
+    RCLCPP_ERROR(node_->get_logger(), "Servicio STT no disponible");
     all_ready = false;
   }
 
   if (!tts_client_->wait_for_service(timeout)) {
-    RCLCPP_ERROR(get_logger(), "Servicio TTS no disponible");
+    RCLCPP_ERROR(node_->get_logger(), "Servicio TTS no disponible");
     all_ready = false;
   }
 
   if (!extract_client_->wait_for_service(timeout)) {
-    RCLCPP_ERROR(get_logger(), "Servicio Extract no disponible");
+    RCLCPP_ERROR(node_->get_logger(), "Servicio Extract no disponible");
     all_ready = false;
   }
 
   if (!yesno_client_->wait_for_service(timeout)) {
-    RCLCPP_ERROR(get_logger(), "Servicio YesNo no disponible");
+    RCLCPP_ERROR(node_->get_logger(), "Servicio YesNo no disponible");
     all_ready = false;
   }
 
   if (all_ready) {
-    RCLCPP_DEBUG(get_logger(), "Todos los servicios HRI disponibles");
+    RCLCPP_DEBUG(node_->get_logger(), "Todos los servicios HRI disponibles");
   }
 
   return all_ready;
@@ -69,14 +69,14 @@ void HRIClient::start_listen()
 {
   // Evitar reiniciar si ya hay una operación en progreso
   if (stt_state_ == OperationState::IN_PROGRESS) {
-    RCLCPP_DEBUG(get_logger(), "STT ya está en progreso, ignorando nueva petición");
+    RCLCPP_DEBUG(node_->get_logger(), "STT ya está en progreso, ignorando nueva petición");
     return;
   }
   
   auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
   request->data = true;
   
-  RCLCPP_INFO(get_logger(), "Iniciando escucha (STT)...");
+  RCLCPP_INFO(node_->get_logger(), "Iniciando escucha (STT)...");
   
   stt_state_ = OperationState::IN_PROGRESS;
   stt_text_.clear();
@@ -99,10 +99,10 @@ bool HRIClient::is_listen_done()
     if (response->success) {
       stt_text_ = response->message;
       stt_state_ = OperationState::COMPLETED;
-      RCLCPP_INFO(get_logger(), "STT completado: '%s'", stt_text_.c_str());
+      RCLCPP_INFO(node_->get_logger(), "STT completado: '%s'", stt_text_.c_str());
     } else {
       stt_state_ = OperationState::ERROR;
-      RCLCPP_WARN(get_logger(), "STT falló: %s", response->message.c_str());
+      RCLCPP_WARN(node_->get_logger(), "STT falló: %s", response->message.c_str());
     }
     return true;
   }
@@ -119,14 +119,14 @@ void HRIClient::start_speaking(const std::string & text)
 {
   // Evitar reiniciar si ya hay una operación en progreso
   if (tts_state_ == OperationState::IN_PROGRESS) {
-    RCLCPP_DEBUG(get_logger(), "TTS ya está en progreso, ignorando nueva petición");
+    RCLCPP_DEBUG(node_->get_logger(), "TTS ya está en progreso, ignorando nueva petición");
     return;
   }
   
   auto request = std::make_shared<simple_hri_interfaces::srv::Speech::Request>();
   request->text = text;
   
-  RCLCPP_INFO(get_logger(), "Iniciando TTS: '%s'", text.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Iniciando TTS: '%s'", text.c_str());
   
   tts_state_ = OperationState::IN_PROGRESS;
   tts_start_time_ = std::chrono::steady_clock::now();
@@ -138,7 +138,7 @@ void HRIClient::start_speaking(const std::string & text)
   int duration_ms = (text_length * 100) + 500; // +500ms de margen
   tts_expected_duration_ = std::chrono::milliseconds(duration_ms);
   
-  RCLCPP_DEBUG(get_logger(), "Duración estimada de TTS: %d ms", duration_ms);
+  RCLCPP_DEBUG(node_->get_logger(), "Duración estimada de TTS: %d ms", duration_ms);
   
   tts_future_ = tts_client_->async_send_request(request);
 }
@@ -159,12 +159,12 @@ bool HRIClient::is_speaking_done()
       // Si el servicio falló, marcar como error inmediatamente
       tts_result_ = false;
       tts_state_ = OperationState::ERROR;
-      RCLCPP_ERROR(get_logger(), "TTS falló");
+      RCLCPP_ERROR(node_->get_logger(), "TTS falló");
       return true;
     }
     tts_result_ = true;
     tts_service_responded_ = true;
-    RCLCPP_DEBUG(get_logger(), "TTS servicio respondió, esperando reproducción...");
+    RCLCPP_DEBUG(node_->get_logger(), "TTS servicio respondió, esperando reproducción...");
   }
   
   // Verificar si ha pasado el tiempo estimado de habla
@@ -173,7 +173,7 @@ bool HRIClient::is_speaking_done()
   if (elapsed >= tts_expected_duration_ && tts_service_responded_) {
     // El servicio respondió Y ha pasado el tiempo estimado
     tts_state_ = OperationState::COMPLETED;
-    RCLCPP_INFO(get_logger(), "TTS completado (duración: %ld ms)", 
+    RCLCPP_INFO(node_->get_logger(), "TTS completado (duración: %ld ms)", 
                 std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
     return true;
   }
@@ -190,7 +190,7 @@ void HRIClient::start_extract(const std::string & interest, const std::string & 
 {
   // Evitar reiniciar si ya hay una operación en progreso
   if (extract_state_ == OperationState::IN_PROGRESS) {
-    RCLCPP_DEBUG(get_logger(), "Extract ya está en progreso, ignorando nueva petición");
+    RCLCPP_DEBUG(node_->get_logger(), "Extract ya está en progreso, ignorando nueva petición");
     return;
   }
   
@@ -199,9 +199,9 @@ void HRIClient::start_extract(const std::string & interest, const std::string & 
   request->text = text;  // Si está vacío, el servicio grabará audio; si no, usa este texto
   
   if (text.empty()) {
-    RCLCPP_INFO(get_logger(), "Iniciando extracción con audio: %s", interest.c_str());
+    RCLCPP_INFO(node_->get_logger(), "Iniciando extracción con audio: %s", interest.c_str());
   } else {
-    RCLCPP_INFO(get_logger(), "Iniciando extracción de texto '%s': %s", text.c_str(), interest.c_str());
+    RCLCPP_INFO(node_->get_logger(), "Iniciando extracción de texto '%s': %s", text.c_str(), interest.c_str());
   }
   
   extract_state_ = OperationState::IN_PROGRESS;
@@ -226,10 +226,10 @@ bool HRIClient::is_extract_done()
     
     if (!response->result.empty()) {
       extract_state_ = OperationState::COMPLETED;
-      RCLCPP_INFO(get_logger(), "Extracción completada: %s", extracted_info_.c_str());
+      RCLCPP_INFO(node_->get_logger(), "Extracción completada: %s", extracted_info_.c_str());
     } else {
       extract_state_ = OperationState::ERROR;
-      RCLCPP_WARN(get_logger(), "Extracción no pudo obtener información");
+      RCLCPP_WARN(node_->get_logger(), "Extracción no pudo obtener información");
     }
     return true;
   }
@@ -246,7 +246,7 @@ void HRIClient::start_yesno(const std::string & text)
 {
   // Evitar reiniciar si ya hay una operación en progreso
   if (yesno_state_ == OperationState::IN_PROGRESS) {
-    RCLCPP_DEBUG(get_logger(), "YesNo ya está en progreso, ignorando nueva petición");
+    RCLCPP_DEBUG(node_->get_logger(), "YesNo ya está en progreso, ignorando nueva petición");
     return;
   }
   
@@ -254,9 +254,9 @@ void HRIClient::start_yesno(const std::string & text)
   request->text = text;  // Si está vacío, el servicio grabará audio; si no, usa este texto
   
   if (text.empty()) {
-    RCLCPP_INFO(get_logger(), "Iniciando detección yes/no con audio...");
+    RCLCPP_INFO(node_->get_logger(), "Iniciando detección yes/no con audio...");
   } else {
-    RCLCPP_INFO(get_logger(), "Iniciando detección yes/no de texto '%s'", text.c_str());
+    RCLCPP_INFO(node_->get_logger(), "Iniciando detección yes/no de texto '%s'", text.c_str());
   }
   
   yesno_state_ = OperationState::IN_PROGRESS;
@@ -281,10 +281,10 @@ bool HRIClient::is_yesno_done()
     std::transform(answer_lower.begin(), answer_lower.end(), answer_lower.begin(), ::tolower);
     if (answer_lower == "yes" || answer_lower == "no") {
       yesno_state_ = OperationState::COMPLETED;
-      RCLCPP_INFO(get_logger(), "YesNo completado: %s", response->result.c_str());
+      RCLCPP_INFO(node_->get_logger(), "YesNo completado: %s", response->result.c_str());
     } else {
       yesno_state_ = OperationState::ERROR;
-      RCLCPP_WARN(get_logger(), "YesNo no pudo obtener respuesta válida: %s", response->result.c_str());
+      RCLCPP_WARN(node_->get_logger(), "YesNo no pudo obtener respuesta válida: %s", response->result.c_str());
     }
     return true;
   }
@@ -300,5 +300,5 @@ std::string HRIClient::get_yesno_result() const
 void HRIClient::listened_text_callback(const std_msgs::msg::String::SharedPtr msg)
 {
   last_listened_text_ = msg->data;
-  RCLCPP_DEBUG(get_logger(), "Texto escuchado recibido: %s", last_listened_text_.c_str());
+  RCLCPP_DEBUG(node_->get_logger(), "Texto escuchado recibido: %s", last_listened_text_.c_str());
 }

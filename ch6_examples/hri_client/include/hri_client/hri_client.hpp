@@ -24,10 +24,18 @@
 #include "simple_hri_interfaces/srv/extract.hpp"
 #include "simple_hri_interfaces/srv/yes_no.hpp"
 
-class HRIClient : public rclcpp::Node
+// HRIClient: Cliente simplificado para interacciones de HRI (TTS, STT, etc.)
+//
+// DECISIÓN DE DISEÑO - Composición con puntero raw:
+// - Usa puntero raw (rclcpp::Node*) en lugar de shared_ptr por las siguientes razones:
+//   1. El cliente siempre será un miembro de un nodo (nunca vive más que el nodo)
+//   2. Permite pasar 'this' directamente en el constructor del nodo padre
+//   3. Evita problemas con shared_from_this() que no puede llamarse en constructores
+//   4. No hay riesgo de dangling pointer porque el ciclo de vida está garantizado
+class HRIClient
 {
 public:
-  HRIClient();
+  explicit HRIClient(rclcpp::Node* node);
 
   // Método para verificar disponibilidad de los servicios
   bool wait_for_services(std::chrono::seconds timeout = std::chrono::seconds(5));
@@ -77,6 +85,10 @@ public:
   std::string get_last_listened_text() const { return last_listened_text_; }
 
 private:
+  // Nodo de ROS2 que gestiona la comunicación
+  // NOTA: Puntero raw porque el cliente siempre es miembro del nodo (lifetime garantizado)
+  rclcpp::Node* node_;
+
   // Clientes de servicios
   rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr stt_client_;
   rclcpp::Client<simple_hri_interfaces::srv::Speech>::SharedPtr tts_client_;

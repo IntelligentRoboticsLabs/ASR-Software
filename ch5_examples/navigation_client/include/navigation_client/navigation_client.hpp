@@ -21,14 +21,22 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 
-class NavigationClient : public rclcpp::Node
+// NavigationClient: Cliente simplificado para interactuar con Nav2
+//
+// DECISIÓN DE DISEÑO - Composición con puntero raw:
+// - Usa puntero raw (rclcpp::Node*) en lugar de shared_ptr por las siguientes razones:
+//   1. El cliente siempre será un miembro de un nodo (nunca vive más que el nodo)
+//   2. Permite pasar 'this' directamente en el constructor del nodo padre
+//   3. Evita problemas con shared_from_this() que no puede llamarse en constructores
+//   4. No hay riesgo de dangling pointer porque el ciclo de vida está garantizado
+class NavigationClient
 {
 public:
   // Alias para simplificar tipos
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNav = rclcpp_action::ClientGoalHandle<NavigateToPose>;
 
-  NavigationClient();
+  explicit NavigationClient(rclcpp::Node* node);
 
   // Método para verificar disponibilidad del servidor
   bool wait_for_action_server(std::chrono::seconds timeout = std::chrono::seconds(5));
@@ -64,6 +72,10 @@ private:
     const std::shared_ptr<const NavigateToPose::Feedback> feedback);
   
   void result_callback(const GoalHandleNav::WrappedResult & result);
+
+  // Nodo de ROS2 que gestiona la comunicación
+  // NOTA: Puntero raw porque el cliente siempre es miembro del nodo (lifetime garantizado)
+  rclcpp::Node* node_;
 
   // Cliente de acción
   rclcpp_action::Client<NavigateToPose>::SharedPtr nav_client_;

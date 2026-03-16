@@ -19,6 +19,9 @@ ExtractInfoClientAction::ExtractInfoClientAction(
   const BT::NodeConfig & config)
 : BT::StatefulActionNode(name, config)
 {
+  if (!config.blackboard->get("node", node_)) {
+    throw BT::RuntimeError("Missing required node in blackboard");
+  }
   if (!config.blackboard->get("hri_client", hri_client_)) {
     throw BT::RuntimeError("Missing required hri_client in blackboard");
   }
@@ -29,18 +32,18 @@ BT::NodeStatus ExtractInfoClientAction::onStart()
   // Obtener el interés del puerto de entrada
   std::string interest;
   if (!getInput("interest", interest)) {
-    RCLCPP_ERROR(hri_client_->get_logger(), "ExtractInfoClientAction: 'interest' input port is required");
+    RCLCPP_ERROR(node_->get_logger(), "ExtractInfoClientAction: 'interest' input port is required");
     return BT::NodeStatus::FAILURE;
   }
 
   // Obtener el texto completo del puerto de entrada
   std::string full_text;
   if (!getInput("full_text", full_text)) {
-    RCLCPP_ERROR(hri_client_->get_logger(), "ExtractInfoClientAction: 'full_text' input port is required");
+    RCLCPP_ERROR(node_->get_logger(), "ExtractInfoClientAction: 'full_text' input port is required");
     return BT::NodeStatus::FAILURE;
   }
 
-  RCLCPP_INFO(hri_client_->get_logger(), "Extracting '%s' from: '%s'", interest.c_str(), full_text.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Extracting '%s' from: '%s'", interest.c_str(), full_text.c_str());
 
   // Usar HRIClient para iniciar extracción
   hri_client_->start_extract(interest, full_text);
@@ -54,7 +57,7 @@ BT::NodeStatus ExtractInfoClientAction::onRunning()
   // Verificar timeout (10 segundos)
   auto elapsed = std::chrono::steady_clock::now() - start_time_;
   if (elapsed > std::chrono::seconds(10)) {
-    RCLCPP_ERROR(hri_client_->get_logger(), "Extract operation timeout");
+    RCLCPP_ERROR(node_->get_logger(), "Extract operation timeout");
     return BT::NodeStatus::FAILURE;
   }
 
@@ -63,11 +66,11 @@ BT::NodeStatus ExtractInfoClientAction::onRunning()
     std::string extracted_info = hri_client_->get_extracted_info();
     
     if (extracted_info.empty()) {
-      RCLCPP_WARN(hri_client_->get_logger(), "Extract operation returned empty result");
+      RCLCPP_WARN(node_->get_logger(), "Extract operation returned empty result");
       return BT::NodeStatus::FAILURE;
     }
 
-    RCLCPP_INFO(hri_client_->get_logger(), "Extracted: '%s'", extracted_info.c_str());
+    RCLCPP_INFO(node_->get_logger(), "Extracted: '%s'", extracted_info.c_str());
     setOutput("extracted_info", extracted_info);
     
     return BT::NodeStatus::SUCCESS;
@@ -78,5 +81,5 @@ BT::NodeStatus ExtractInfoClientAction::onRunning()
 
 void ExtractInfoClientAction::onHalted()
 {
-  RCLCPP_WARN(hri_client_->get_logger(), "Extract action halted");
+  RCLCPP_WARN(node_->get_logger(), "Extract action halted");
 }
