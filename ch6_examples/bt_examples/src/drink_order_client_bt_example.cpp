@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
   
   // Esperar a que los servicios estén disponibles
   RCLCPP_INFO(node->get_logger(), "Waiting for HRI services...");
-  if (!hri_client->wait_for_services(std::chrono::seconds(10))) {
+  if (!hri_client->wait_until_ready(std::chrono::seconds(10))) {
     RCLCPP_ERROR(node->get_logger(), "HRI services not available. Exiting.");
     rclcpp::shutdown();
     return 1;

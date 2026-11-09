@@ -32,7 +32,7 @@ HRIClient::HRIClient(rclcpp::Node* node)
   RCLCPP_DEBUG(node_->get_logger(), "Cliente HRI inicializado");
 }
 
-bool HRIClient::wait_for_services(std::chrono::seconds timeout)
+bool HRIClient::wait_until_ready(std::chrono::seconds timeout)
 {
   bool all_ready = true;
 
@@ -65,7 +65,7 @@ bool HRIClient::wait_for_services(std::chrono::seconds timeout)
 
 // ============ IMPLEMENTACIÓN MÉTODOS ASÍNCRONOS ============
 
-void HRIClient::start_listen()
+void HRIClient::start_listening()
 {
   // Evitar reiniciar si ya hay una operación en progreso
   if (stt_state_ == OperationState::IN_PROGRESS) {
@@ -83,7 +83,7 @@ void HRIClient::start_listen()
   stt_future_ = stt_client_->async_send_request(request);
 }
 
-bool HRIClient::is_listen_done()
+bool HRIClient::is_listening_done()
 {
   if (stt_state_ != OperationState::IN_PROGRESS) {
     // Devolver true si está completado O en error (ya terminó)

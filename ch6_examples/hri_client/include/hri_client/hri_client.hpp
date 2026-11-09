@@ -38,15 +38,15 @@ public:
   explicit HRIClient(rclcpp::Node* node);
 
   // Método para verificar disponibilidad de los servicios
-  bool wait_for_services(std::chrono::seconds timeout = std::chrono::seconds(5));
+  bool wait_until_ready(std::chrono::seconds timeout = std::chrono::seconds(5));
 
   // ============ MÉTODOS ASÍNCRONOS ============
   
   // Iniciar Speech-to-Text (STT) - Escuchar y transcribir audio
-  void start_listen();
+  void start_listening();
   
   // Verificar si terminó de escuchar
-  bool is_listen_done();
+  bool is_listening_done();
   
   // Obtener texto transcrito
   std::string get_listened_text() const;

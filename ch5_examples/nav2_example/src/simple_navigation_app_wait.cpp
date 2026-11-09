@@ -27,7 +27,7 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
     
     // 2. FASE 1: Verificar disponibilidad de Nav2
     RCLCPP_INFO(get_logger(), "Esperando a que Nav2 esté disponible...");
-    if (!nav_client_->wait_for_action_server(std::chrono::seconds(10))) {
+    if (!nav_client_->wait_until_ready(std::chrono::seconds(10))) {
       RCLCPP_ERROR(get_logger(), "Nav2 no disponible tras 10 segundos");
       return;
     }
@@ -44,7 +44,7 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
     
     RCLCPP_INFO(get_logger(), "Navegando por %zu waypoints...", waypoints.size());
     
-    // 4. FASE 2-4: Iterar por waypoints usando wait_for_result()
+    // 4. FASE 2-4: Iterar por waypoints usando wait_for_navigation_result()
     // Patrón BLOQUEANTE SIMPLE: enviar -> esperar -> procesar -> siguiente
     for (size_t i = 0; i < waypoints.size(); i++) {
       auto [x, y, yaw] = waypoints[i];
@@ -57,12 +57,12 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
                   i + 1, waypoints.size(), x, y, yaw);
       
       // Enviar objetivo (se cancela automáticamente cualquier goal anterior)
-      nav_client_->send_goal(goal);
+      nav_client_->start_navigation(goal);
       
       // CLAVE: Esperar BLOQUEANDO hasta que termine
-      // wait_for_result() internamente procesa callbacks y verifica estado
+      // wait_for_navigation_result() internamente procesa callbacks y verifica estado
       // Retorna: true si éxito, false si falló/timeout/cancelado
-      bool success = nav_client_->wait_for_result(std::chrono::seconds(300));
+      bool success = nav_client_->wait_for_navigation_result(std::chrono::seconds(300));
       
       // Procesar resultado
       if (success) {

@@ -27,7 +27,7 @@ int main(int argc, char** argv)
   // Solo necesitamos un nodo en el executor
   // NavigationClient ahora es un componente que usa el nodo de la app
   // Spin para mantener el nodo vivo y procesar callbacks residuales
-  // En este caso no es estrictamente necesario porque wait_for_result()
+  // En este caso no es estrictamente necesario porque wait_for_navigation_result()
   // ya procesa callbacks internamente, pero es buena práctica
   rclcpp::spin(app);
   

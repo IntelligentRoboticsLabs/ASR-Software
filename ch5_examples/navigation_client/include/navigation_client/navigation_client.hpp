@@ -39,26 +39,29 @@ public:
   explicit NavigationClient(rclcpp::Node* node);
 
   // Método para verificar disponibilidad del servidor
-  bool wait_for_action_server(std::chrono::seconds timeout = std::chrono::seconds(5));
+  bool wait_until_ready(std::chrono::seconds timeout = std::chrono::seconds(5));
 
   // Envío de objetivo de navegación
-  void send_goal(const geometry_msgs::msg::PoseStamped& target_pose);
+  void start_navigation(const geometry_msgs::msg::PoseStamped& target_pose);
 
   // Consultar estado del objetivo actual
-  bool is_goal_active() const { return goal_active_; }
-  bool is_goal_done() const { return goal_done_; }
+  bool is_navigation_active() const { return goal_active_; }
+  bool is_navigation_done() const { return goal_done_; }
   bool was_goal_successful() const { return goal_success_; }
 
   // Obtener el último feedback recibido
-  std::shared_ptr<const NavigateToPose::Feedback> get_feedback() const { return last_feedback_; }
+  std::shared_ptr<const NavigateToPose::Feedback> get_navigation_feedback() const
+  {
+    return last_feedback_;
+  }
 
   // Cancelar el objetivo en progreso
-  void cancel_goal();
+  void cancel_navigation();
   
   // Esperar BLOQUEANDO hasta que el goal actual termine
   // Retorna true si fue exitoso, false si falló/fue cancelado
   // Útil para secuencias de navegación donde necesitas esperar entre goals
-  bool wait_for_result(std::chrono::seconds timeout = std::chrono::seconds(300));
+  bool wait_for_navigation_result(std::chrono::seconds timeout = std::chrono::seconds(300));
 
   // Método auxiliar para crear poses
   geometry_msgs::msg::PoseStamped create_pose_stamped(double x, double y, double yaw);

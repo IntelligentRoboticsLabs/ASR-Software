@@ -23,14 +23,14 @@ Este paquete proporciona una clase `HRIClient` que encapsula la funcionalidad de
 auto hri_client = std::make_shared<HRIClient>();
 
 // Esperar a que los servicios estén disponibles
-if (!hri_client->wait_for_services()) {
+if (!hri_client->wait_until_ready()) {
   // Servicios no disponibles
   return;
 }
 
 // Uso asíncrono - Speech-to-Text
-hri_client->start_listen();
-while (!hri_client->is_listen_done()) {
+hri_client->start_listening();
+while (!hri_client->is_listening_done()) {
   rclcpp::spin_some(hri_client);
   // Hacer otras cosas mientras escucha...
 }

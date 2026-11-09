@@ -25,7 +25,7 @@ NavigationClient::NavigationClient(rclcpp::Node* node)
   RCLCPP_DEBUG(node_->get_logger(), "Cliente de navegación inicializado");
 }
 
-bool NavigationClient::wait_for_action_server(std::chrono::seconds timeout)
+bool NavigationClient::wait_until_ready(std::chrono::seconds timeout)
 {
   // Método de verificación: asegura que Nav2 está operativo
   // FASE 1: Antes de enviar objetivos, verificar disponibilidad de la capacidad
@@ -38,7 +38,7 @@ bool NavigationClient::wait_for_action_server(std::chrono::seconds timeout)
   return true;
 }
 
-void NavigationClient::send_goal(const geometry_msgs::msg::PoseStamped& target_pose)
+void NavigationClient::start_navigation(const geometry_msgs::msg::PoseStamped& target_pose)
 {
   // Método de activación: solicita navegación de forma ASÍNCRONA
   // FASE 2: Enviar objetivo sin bloquear, retorna inmediatamente
@@ -163,7 +163,7 @@ void NavigationClient::result_callback(const GoalHandleNav::WrappedResult & resu
   }
 }
 
-void NavigationClient::cancel_goal()
+void NavigationClient::cancel_navigation()
 {
   // Método de control: permite abortar una navegación en progreso
   // Útil cuando la aplicación decide cambiar de plan (emergencia, timeout, nueva misión)
@@ -174,7 +174,7 @@ void NavigationClient::cancel_goal()
   }
 }
 
-bool NavigationClient::wait_for_result(std::chrono::seconds timeout)
+bool NavigationClient::wait_for_navigation_result(std::chrono::seconds timeout)
 {
   // Método BLOQUEANTE: espera hasta que el goal actual termine
   // Útil para secuencias de navegación: enviar goal -> esperar -> enviar siguiente
@@ -206,7 +206,7 @@ bool NavigationClient::wait_for_result(std::chrono::seconds timeout)
       RCLCPP_WARN(node_->get_logger(), 
                   "Timeout esperando resultado del goal (%.1f s)", 
                   std::chrono::duration<double>(timeout).count());
-      cancel_goal();  // Cancelar el goal si hay timeout
+      cancel_navigation();  // Cancelar el goal si hay timeout
       return false;
     }
     

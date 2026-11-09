@@ -29,7 +29,7 @@ Este paquete contiene código de ejemplo que demuestra cómo usar la acción Nav
 - **Uso**: Un solo objetivo de navegación
 
 **Ejecutable simple_navigation_app_wait** (patrón BLOQUEANTE):
-- Aplicación de ejemplo que utiliza `wait_for_result()` para navegación secuencial
+- Aplicación de ejemplo que utiliza `wait_for_navigation_result()` para navegación secuencial
 - Navega por múltiples waypoints en secuencia esperando bloqueando entre cada uno
 - **Ventaja**: Código más simple y directo para secuencias
 - **Uso**: Múltiples waypoints consecutivos con espera automática
@@ -84,7 +84,7 @@ ros2 run nav2_example simple_navigation_app_wait
   - Ideal para aplicaciones que necesitan seguir procesando otros eventos
   - Patrón: Máquina de estados con callbacks
 
-- `simple_navigation_app_wait`: Navega por **4 waypoints consecutivos** usando `wait_for_result()` (bloqueante)
+- `simple_navigation_app_wait`: Navega por **4 waypoints consecutivos** usando `wait_for_navigation_result()` (bloqueante)
   - Ideal para secuencias simples de navegación punto a punto
   - Patrón: Bucle secuencial con esperas automáticas
   - Demuestra cómo enviar múltiples goals sin conflictos
@@ -130,7 +130,7 @@ public:
     
     // Usar el cliente...
     auto pose = nav_client_->create_pose_stamped(1.0, 2.0, 0.0);
-    nav_client_->send_goal(pose);
+    nav_client_->start_navigation(pose);
   }
 
 private:

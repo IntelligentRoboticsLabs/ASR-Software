@@ -10,7 +10,7 @@ Este paquete proporciona una clase `NavigationClient` que encapsula la funcional
 
 - Cliente de acción asíncrono para `NavigateToPose`
 - Soporte para callbacks de feedback, respuesta y resultado
-- Método bloqueante para esperar resultados (`wait_for_result`)
+- Método bloqueante para esperar resultados (`wait_for_navigation_result`)
 - Método auxiliar para crear poses (`create_pose_stamped`)
 - Cancelación de objetivos en progreso
 
@@ -22,14 +22,14 @@ Este paquete proporciona una clase `NavigationClient` que encapsula la funcional
 auto nav_client = std::make_shared<NavigationClient>();
 
 // Esperar a que el servidor esté disponible
-if (!nav_client->wait_for_action_server()) {
+if (!nav_client->wait_until_ready()) {
   // Servidor no disponible
   return;
 }
 
 // Crear y enviar objetivo
 auto pose = nav_client->create_pose_stamped(1.0, 2.0, 0.0);
-nav_client->send_goal(pose);
+nav_client->start_navigation(pose);
 ```
 
 ## Dependencias

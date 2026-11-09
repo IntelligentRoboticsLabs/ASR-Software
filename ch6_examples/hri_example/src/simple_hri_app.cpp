@@ -39,7 +39,7 @@ void SimpleHRIApp::control_cycle()
   switch (current_state_) {
     case State::WAITING_FOR_SERVICES:
       {
-        if (hri_client_->wait_for_services(std::chrono::seconds(1))) {
+        if (hri_client_->wait_until_ready(std::chrono::seconds(1))) {
           RCLCPP_INFO(get_logger(), "Servicios HRI disponibles");
           current_state_ = State::GREETING;
         }
@@ -70,11 +70,11 @@ void SimpleHRIApp::control_cycle()
       {
         if (!on_duty_) {
           RCLCPP_INFO(get_logger(), "Iniciando escucha...");
-          hri_client_->start_listen();
+          hri_client_->start_listening();
           on_duty_ = true;
         } else {
           RCLCPP_INFO(get_logger(), "Escuchando...");
-          if (hri_client_->is_listen_done()) {
+          if (hri_client_->is_listening_done()) {
             listened_text_ = hri_client_->get_listened_text();
             RCLCPP_INFO(get_logger(), "Texto escuchado: '%s'", listened_text_.c_str());
             on_duty_ = false;
@@ -133,11 +133,11 @@ void SimpleHRIApp::control_cycle()
        {
         if (!on_duty_) {
           RCLCPP_INFO(get_logger(), "Escuchando confirmación...");
-          hri_client_->start_listen();
+          hri_client_->start_listening();
           on_duty_ = true;
         } else {
           RCLCPP_INFO(get_logger(), "Escuchando...");
-          if (hri_client_->is_listen_done()) {
+          if (hri_client_->is_listening_done()) {
             listened_text_ = hri_client_->get_listened_text();
             RCLCPP_INFO(get_logger(), "Texto escuchado para confirmación: '%s'", listened_text_.c_str());
             on_duty_ = false;

@@ -155,7 +155,7 @@ public:
     hri_client_ = std::make_shared<HRIClient>();
     
     // Esperar servicios
-    if (hri_client_->wait_for_services()) {
+    if (hri_client_->wait_until_ready()) {
       // Usar TTS
       hri_client_->call_tts_service("Hello World");
       
@@ -188,7 +188,7 @@ private:
 
 ### Métodos principales
 
-- `bool wait_for_services(std::chrono::seconds timeout)`: Espera a que todos los servicios estén disponibles
+- `bool wait_until_ready(std::chrono::seconds timeout)`: Espera a que todos los servicios estén disponibles
 - `bool call_stt_service(std::string & transcribed_text)`: Convierte audio a texto
 - `bool call_tts_service(const std::string & text)`: Reproduce texto como audio
 - `bool call_extract_service(const std::string & interest, std::string & extracted_info)`: Extrae información específica

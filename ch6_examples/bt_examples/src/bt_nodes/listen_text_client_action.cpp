@@ -32,7 +32,7 @@ BT::NodeStatus ListenTextClientAction::onStart()
   RCLCPP_INFO(node_->get_logger(), "Listening for speech...");
 
   // Usar HRIClient para iniciar STT
-  hri_client_->start_listen();
+  hri_client_->start_listening();
   start_time_ = std::chrono::steady_clock::now();
   
   return BT::NodeStatus::RUNNING;
@@ -48,7 +48,7 @@ BT::NodeStatus ListenTextClientAction::onRunning()
   }
 
   // Verificar si HRIClient terminó de escuchar
-  if (hri_client_->is_listen_done()) {
+  if (hri_client_->is_listening_done()) {
     std::string recognized_text = hri_client_->get_listened_text();
     
     if (recognized_text.empty()) {

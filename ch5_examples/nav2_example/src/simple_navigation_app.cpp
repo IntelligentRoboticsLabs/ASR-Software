@@ -41,32 +41,32 @@ SimpleNavigationApp::SimpleNavigationApp()
 void SimpleNavigationApp::control_cycle()
 {
   // FASE 1: Verificar disponibilidad de la CAPACIDAD
-  // Usa: wait_for_action_server(timeout)
+  // Usa: wait_until_ready(timeout)
   // Propósito: Asegurar que Nav2 está listo antes de enviar objetivos
-  if (!server_ready_) {
-    if (nav_client_->wait_for_action_server(std::chrono::seconds(1))) {
-      RCLCPP_INFO(get_logger(), "Servidor disponible, preparado para navegar");
-      server_ready_ = true;
+  if (!navigation_ready_) {
+    if (nav_client_->wait_until_ready(std::chrono::seconds(1))) {
+      RCLCPP_INFO(get_logger(), "Navegación preparada");
+      navigation_ready_ = true;
     }
     return;  // Seguir esperando en próxima iteración
   }
   
   // FASE 2: Activar la CAPACIDAD (enviar objetivo)
-  // Usa: send_goal(target_pose)
+  // Usa: start_navigation(target_pose)
   // Propósito: Solicitar navegación de forma asíncrona (no bloquea)
   if (!goal_sent_) {
     RCLCPP_INFO(get_logger(), "Enviando objetivo de navegación...");
-    nav_client_->send_goal(target_pose_);
+    nav_client_->start_navigation(target_pose_);
     goal_sent_ = true;
     return;
   }
 
   // FASE 3: Monitorizar PROGRESO de la capacidad
-  // Usa: is_goal_done() para verificar si la capacidad terminó
-  // Usa: get_feedback() para obtener información de progreso
-  if (!nav_client_->is_goal_done()) {
+  // Usa: is_navigation_done() para verificar si la capacidad terminó
+  // Usa: get_navigation_feedback() para obtener información de progreso
+  if (!nav_client_->is_navigation_done()) {
     // Objetivo en progreso: consultar feedback (opcional pero útil)
-    auto feedback = nav_client_->get_feedback();
+    auto feedback = nav_client_->get_navigation_feedback();
     if (feedback) {
       RCLCPP_INFO(get_logger(), 
                   "\t-Distancia restante: %.2f m | Tiempo: %.1f s",
