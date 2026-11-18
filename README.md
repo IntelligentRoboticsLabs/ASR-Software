@@ -1,6 +1,11 @@
 # ASR-Software
 
-Workspace de ROS 2 Jazzy de la asignatura Arquitecturas Software para Robots: nodos,
+> **Rama `lyrical`**: el mismo código que `main` adaptado a ROS 2 Lyrical (Ubuntu 26.04).
+> Los alumnos usan `main` (ROS 2 Jazzy, Ubuntu 24.04). Los cambios se hacen en `main` y se
+> integran aquí con `git merge main`; en esta rama solo va lo propio de Lyrical (este README,
+> `thirdparty.repos`, `requirements.txt` y algunas API del driver del Kobuki).
+
+Workspace de ROS 2 Lyrical de la asignatura Arquitecturas Software para Robots: nodos,
 sensores y TF, máquinas de estados, navegación, behavior trees, interacción
 humano-robot y misiones, con el robot Kobuki (real o simulado).
 
@@ -21,7 +26,7 @@ esa ruta. Este repositorio es el directorio `src` del workspace.
 
 ### Requisitos
 
-- Ubuntu 24.04 con [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html)
+- Ubuntu 26.04 con [ROS 2 Lyrical](https://docs.ros.org/en/lyrical/Installation/Ubuntu-Install-Debs.html)
   (variante `desktop`).
 - Unos 20 GB libres: los modelos de voz y de visión usan PyTorch.
 - Opcional, para ejecutar YOLO y Whisper en la GPU: tarjeta NVIDIA con su driver
@@ -44,31 +49,34 @@ con `vcs` en `src/thirdparty`, que Git ignora:
 
 ```bash
 mkdir -p ~/asr_ws
-git clone https://github.com/IntelligentRoboticsLabs/ASR-Software.git ~/asr_ws/src
+git clone -b lyrical https://github.com/IntelligentRoboticsLabs/ASR-Software.git ~/asr_ws/src
 cd ~/asr_ws/src
 vcs import < thirdparty.repos
 ```
+
+En Lyrical, `thirdparty.repos` también descarga `kobuki_velocity_smoother`, que no está
+empaquetado para esta distribución.
 
 ### 3. Dependencias del sistema
 
 ```bash
 cd ~/asr_ws
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/lyrical/setup.bash
 rosdep install --from-paths src --ignore-src -r -y \
   --skip-keys="gazebo gazebo_ros gazebo_plugins astra_camera aws_robomaker_bookstore_world aws_robomaker_racetrack_world aws_robomaker_small_warehouse_world"
 sudo apt install -y libusb-1.0-0-dev libftdi1-dev libuvc-dev libportaudio2 alsa-utils
 ```
 
 - `rosdep` instala con `apt` las dependencias que declaran los `package.xml`: Nav2,
-  Gazebo, BehaviorTree.CPP (`ros-jazzy-behaviortree-cpp`), PCL, OpenCV...
+  Gazebo, BehaviorTree.CPP (`ros-lyrical-behaviortree-cpp`), PCL, OpenCV...
 - El `sudo apt install` instala lo que ningún paquete declara: las librerías USB del
   Kobuki, PortAudio (para grabar audio) y `alsa-utils` (`aplay`, para reproducirlo).
 - `--skip-keys` indica a `rosdep` qué dependencias no debe intentar instalar:
 
   | Clave | Quién la declara | Por qué se omite |
   | --- | --- | --- |
-  | `gazebo`, `gazebo_ros`, `gazebo_plugins` | `aws-robomaker-small-house-world` | Son de Gazebo clásico, que no existe en Jazzy; el mundo usa el Gazebo actual (`ros_gz_sim`), que sí se instala |
-  | `astra_camera`, `aws_robomaker_bookstore_world`, `aws_robomaker_racetrack_world`, `aws_robomaker_small_warehouse_world` | `kobuki` | Cámara y mundos opcionales que no usa la asignatura (el almacén ni siquiera existe como paquete de Jazzy) |
+  | `gazebo`, `gazebo_ros`, `gazebo_plugins` | `aws-robomaker-small-house-world` | Son de Gazebo clásico, que no existe en Lyrical; el mundo usa el Gazebo actual (`ros_gz_sim`), que sí se instala |
+  | `astra_camera`, `aws_robomaker_bookstore_world`, `aws_robomaker_racetrack_world`, `aws_robomaker_small_warehouse_world` | `kobuki` | Cámara y mundos opcionales que no usa la asignatura (el almacén ni siquiera existe como paquete) |
 
 ### 4. Entorno virtual de Python
 
@@ -89,27 +97,31 @@ python3 -m pip install -r src/requirements.txt
 - `COLCON_IGNORE` evita que `colcon` busque paquetes dentro del entorno.
 - `src/requirements.txt` reúne las dependencias de `simple_hri` y de `yolo_ros`, y
   `colcon`: se instala dentro del entorno para que los nodos compilados usen su Python y
-  encuentren sus dependencias.
+  encuentren sus dependencias. En Lyrical no restringe `numpy<2`: se usa el numpy 2 del
+  sistema, con el que está compilado ROS 2.
 
 ### 5. Compilar
 
 ```bash
 cd ~/asr_ws
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/lyrical/setup.bash
 source .venv/bin/activate
-python3 -m colcon build --symlink-install
+python3 -m colcon build --symlink-install --cmake-args -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 ```
+
+`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` hace falta en Lyrical: CMake 4 rechaza el
+`cmake_minimum_required` antiguo de `ecl_build` (que usan los paquetes del Kobuki).
 
 Si el equipo se queda sin memoria, compila con `--parallel-workers 1`. Para recompilar
 solo un paquete y los que necesita: `python3 -m colcon build --symlink-install
---packages-up-to bt_examples`.
+--packages-up-to bt_examples --cmake-args -DCMAKE_POLICY_VERSION_MINIMUM=3.5`.
 
 ### 6. Usar el workspace
 
 En cada terminal nueva, carga ROS 2, el entorno virtual y el workspace, en este orden:
 
 ```bash
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/lyrical/setup.bash
 source ~/asr_ws/.venv/bin/activate
 source ~/asr_ws/install/setup.bash
 ```
@@ -179,10 +191,10 @@ git pull
 vcs import < thirdparty.repos   # paquetes de terceros nuevos
 vcs pull thirdparty
 cd ~/asr_ws
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/lyrical/setup.bash
 source .venv/bin/activate
 python3 -m pip install -r src/requirements.txt
-python3 -m colcon build --symlink-install
+python3 -m colcon build --symlink-install --cmake-args -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 ```
 
 Si tras actualizar la compilación falla por restos antiguos, borra `build install log` y

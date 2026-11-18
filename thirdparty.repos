@@ -6,3 +6,8 @@ repositories:
     type: git
     url: https://github.com/rodperex/simple_hri.git
     version: main
+  # Rama lyrical: kobuki_velocity_smoother no está empaquetado para Lyrical
+  thirdparty/kobuki_velocity_smoother:
+    type: git
+    url: https://github.com/kobuki-base/kobuki_velocity_smoother.git
+    version: devel
