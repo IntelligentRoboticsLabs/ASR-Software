@@ -44,6 +44,10 @@ int main(int argc, char** argv) {
   RCLCPP_INFO(node->get_logger(), "Charger position: (%.2f, %.2f)", 
               charger_x, charger_y);
   
+  // Executor del nodo (los futures de acciones y servicios se completan al hacer spin)
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+
   // Bucle principal: tick del árbol a 10 Hz
   rclcpp::Rate rate(10);
   BT::NodeStatus status = BT::NodeStatus::IDLE;
@@ -51,8 +55,10 @@ int main(int argc, char** argv) {
   while (rclcpp::ok() && status != BT::NodeStatus::FAILURE) {
     RCLCPP_DEBUG(node->get_logger(), "Ticking the behavior tree...");
     
-    // Procesar callbacks de ROS
-    rclcpp::spin_some(node);
+    // Procesar TODOS los callbacks de ROS pendientes. spin_some() ejecuta un solo evento
+    // por cliente de acción en cada llamada: con el feedback de Nav2, la respuesta, el
+    // resultado o la cancelación de un goal llegarían con retraso
+    executor.spin_all(std::chrono::milliseconds(10));
     
     // Evaluar árbol
     status = tree.tickOnce();

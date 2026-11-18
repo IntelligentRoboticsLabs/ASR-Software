@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #ifndef BT_EXAMPLES__SAY_TEXT_ACTION_HPP_
 #define BT_EXAMPLES__SAY_TEXT_ACTION_HPP_
 
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
-#include <simple_hri_interfaces/srv/speech.hpp>
-#include <optional>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <simple_hri_interfaces/action/say.hpp>
 
+#include <memory>
+#include <string>
+
+#include "hri_client/action_call.hpp"
+
+// SayText: el robot dice un texto con la ACCIÓN /tts_action de simple_hri.
+// La acción termina cuando el audio termina de verdad; si el nodo se detiene (halt),
+// se cancela el goal y el servidor corta el audio.
 class SayTextAction : public BT::StatefulActionNode
 {
 public:
-  using Speech = simple_hri_interfaces::srv::Speech;
+  using Say = simple_hri_interfaces::action::Say;
 
   SayTextAction(
     const std::string & name,
@@ -42,13 +51,10 @@ public:
 
 private:
   std::string formatText(const std::string & text);
-  
+
   rclcpp::Node::SharedPtr node_;
-  rclcpp::Client<Speech>::SharedPtr tts_client_;
-  std::optional<rclcpp::Client<Speech>::FutureAndRequestId> future_;
-  std::chrono::steady_clock::time_point start_time_;
-  std::chrono::milliseconds tts_expected_duration_{0};
-  bool service_responded_{false};
+  rclcpp_action::Client<Say>::SharedPtr tts_client_;
+  std::unique_ptr<hri_client::ActionCall<Say>> call_;
 };
 
 #endif  // BT_EXAMPLES__SAY_TEXT_ACTION_HPP_

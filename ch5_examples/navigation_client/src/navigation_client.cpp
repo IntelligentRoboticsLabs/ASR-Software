@@ -14,227 +14,241 @@
 
 #include "navigation_client/navigation_client.hpp"
 
-NavigationClient::NavigationClient(rclcpp::Node* node)
+#include "tf2/LinearMath/Quaternion.hpp"
+
+const char * to_string(NavigationState state)
+{
+  switch (state) {
+    case NavigationState::IDLE: return "IDLE";
+    case NavigationState::IN_PROGRESS: return "IN_PROGRESS";
+    case NavigationState::COMPLETED: return "COMPLETED";
+    case NavigationState::ERROR: return "ERROR";
+    case NavigationState::TIMEOUT: return "TIMEOUT";
+    case NavigationState::CANCELED: return "CANCELED";
+  }
+  return "UNKNOWN";
+}
+
+NavigationClient::NavigationClient(rclcpp::Node * node)
 : node_(node)
 {
-  // Crear el cliente de acción para comunicarse con Nav2
-  // Este cliente encapsula toda la complejidad de comunicación asíncrona
-  nav_client_ = rclcpp_action::create_client<NavigateToPose>(
-    node_, "navigate_to_pose");
-  
+  // Cliente de la acción de Nav2: encapsula la comunicación asíncrona
+  nav_client_ = rclcpp_action::create_client<NavigateToPose>(node_, "navigate_to_pose");
   RCLCPP_DEBUG(node_->get_logger(), "Cliente de navegación inicializado");
 }
 
 bool NavigationClient::wait_until_ready(std::chrono::seconds timeout)
 {
-  // Método de verificación: asegura que Nav2 está operativo
-  // FASE 1: Antes de enviar objetivos, verificar disponibilidad de la capacidad
+  // FASE 1: antes de enviar objetivos, verificar que la capacidad está disponible
   if (!nav_client_->wait_for_action_server(timeout)) {
-    RCLCPP_ERROR(node_->get_logger(), 
-                 "Servidor de navegación no disponible tras espera");
+    RCLCPP_WARN(node_->get_logger(), "Acción de navegación (navigate_to_pose) no disponible");
     return false;
   }
-  RCLCPP_DEBUG(node_->get_logger(), "Servidor de navegación disponible");
+  RCLCPP_DEBUG(node_->get_logger(), "Acción de navegación disponible");
   return true;
 }
 
-void NavigationClient::start_navigation(const geometry_msgs::msg::PoseStamped& target_pose)
+void NavigationClient::start_navigation(
+  const geometry_msgs::msg::PoseStamped & target_pose, double timeout_sec)
 {
-  // Método de activación: solicita navegación de forma ASÍNCRONA
-  // FASE 2: Enviar objetivo sin bloquear, retorna inmediatamente
-  // Los callbacks gestionarán la respuesta, feedback y resultado
-  
-  // // IMPORTANTE: Cancelar goal anterior si existe
-  // // Esto evita que goals abortados interfieran con nuevos goals
-  // if (goal_handle_ && (goal_active_ || !goal_done_)) {
-  //   RCLCPP_DEBUG(get_logger(), "Cancelando goal anterior antes de enviar nuevo");
-  //   nav_client_->async_cancel_goal(goal_handle_);
-  //   // Pequeña espera para que Nav2 procese la cancelación
-  //   rclcpp::sleep_for(std::chrono::milliseconds(100));
-  // }
-  
-  // // Resetear flags de control y limpiar handle anterior
-  goal_active_ = false;
-  goal_done_ = false;
-  goal_success_ = false;
-  goal_handle_.reset();  // Limpiar referencia al goal anterior
-  last_feedback_.reset();  // Limpiar feedback anterior
+  // FASE 2: enviar el objetivo SIN BLOQUEAR. Los callbacks gestionan la respuesta,
+  // el feedback y el resultado; la aplicación consulta is_navigation_done()
 
-  // Construir el mensaje de objetivo
-  auto goal_msg = NavigateToPose::Goal();
-  goal_msg.pose = target_pose;
+  // Si había un objetivo en curso, se cancela: el nuevo lo sustituye
+  if (state_ == NavigationState::IN_PROGRESS) {
+    RCLCPP_DEBUG(node_->get_logger(), "Cancelando el objetivo anterior");
+    finish(NavigationState::CANCELED);
+  }
+
+  goal_handle_.reset();
+  last_feedback_.reset();
+  cancel_requested_ = false;
+  state_ = NavigationState::IN_PROGRESS;
+
+  // El plazo cuenta tiempo del ROBOT (reloj del nodo): con use_sim_time es el tiempo del
+  // simulador, así un objetivo no expira antes porque el simulador vaya lento
+  deadline_.reset();
+  if (timeout_sec > 0.0) {
+    deadline_ = node_->now() + rclcpp::Duration::from_seconds(timeout_sec);
+  }
+
+  const uint64_t seq = ++goal_seq_;
+
+  NavigateToPose::Goal goal_msg;
+  goal_msg.pose = target_pose;  // Copia: no se modifica la pose de quien llama
   goal_msg.pose.header.stamp = node_->now();
-  goal_msg.pose.header.frame_id = "map";
+  if (goal_msg.pose.header.frame_id.empty()) {
+    goal_msg.pose.header.frame_id = "map";
+  }
 
-  RCLCPP_DEBUG(node_->get_logger(), 
-               "Enviando objetivo: (%.2f, %.2f)",
-               target_pose.pose.position.x,
-               target_pose.pose.position.y);
+  RCLCPP_DEBUG(
+    node_->get_logger(), "Enviando objetivo: (%.2f, %.2f)",
+    target_pose.pose.position.x, target_pose.pose.position.y);
 
-  // Configurar opciones con callbacks
   auto send_goal_options = rclcpp_action::Client<NavigateToPose>::SendGoalOptions();
-  
-  // Callback 1: Respuesta al envío (objetivo aceptado/rechazado)
-  send_goal_options.goal_response_callback = 
-    std::bind(&NavigationClient::goal_response_callback, this, 
-              std::placeholders::_1);
-  
-  // Callback 2: Feedback periódico durante la navegación
-  send_goal_options.feedback_callback = 
-    std::bind(&NavigationClient::feedback_callback, this,
-              std::placeholders::_1, std::placeholders::_2);
-  
-  // Callback 3: Resultado final de la navegación
-  send_goal_options.result_callback = 
-    std::bind(&NavigationClient::result_callback, this,
-              std::placeholders::_1);
 
-  // Enviar el objetivo de forma asíncrona
+  // Callback 1: respuesta al envío (objetivo aceptado/rechazado)
+  send_goal_options.goal_response_callback =
+    [this, seq](const GoalHandleNav::SharedPtr & goal_handle) {
+      goal_response_callback(goal_handle, seq);
+    };
+
+  // Callback 2: feedback periódico durante la navegación
+  send_goal_options.feedback_callback =
+    [this, seq](GoalHandleNav::SharedPtr,
+      const std::shared_ptr<const NavigateToPose::Feedback> feedback) {
+      feedback_callback(feedback, seq);
+    };
+
+  // Callback 3: resultado final de la navegación
+  send_goal_options.result_callback =
+    [this, seq](const GoalHandleNav::WrappedResult & result) {
+      result_callback(result, seq);
+    };
+
   nav_client_->async_send_goal(goal_msg, send_goal_options);
 }
 
 void NavigationClient::goal_response_callback(
-  const GoalHandleNav::SharedPtr & goal_handle)
+  const GoalHandleNav::SharedPtr & goal_handle, uint64_t seq)
 {
-  // Callback ejecutado cuando Nav2 responde si acepta o rechaza el objetivo
-  // Actualiza flags para que la aplicación pueda consultar el estado
-  if (!goal_handle) {
-    RCLCPP_ERROR(node_->get_logger(), "Objetivo rechazado por el servidor");
-    goal_done_ = true;
-    goal_success_ = false;
+  if (seq != goal_seq_) {
+    // Objetivo de un start_navigation() anterior: si se aceptó, se cancela y se ignora
+    if (goal_handle) {
+      cancel_goal(goal_handle);
+    }
     return;
   }
-  
-  RCLCPP_DEBUG(node_->get_logger(), "Objetivo aceptado, navegación iniciada");
+
+  if (!goal_handle) {
+    RCLCPP_ERROR(node_->get_logger(), "Objetivo rechazado por el servidor");
+    state_ = NavigationState::ERROR;
+    return;
+  }
+
   goal_handle_ = goal_handle;
-  goal_active_ = true;  // Señaliza que la navegación está en progreso
+  if (cancel_requested_) {
+    // cancel_navigation() o un timeout ocurrieron antes de que Nav2 aceptara el objetivo
+    cancel_goal(goal_handle);
+    return;
+  }
+
+  RCLCPP_DEBUG(node_->get_logger(), "Objetivo aceptado, navegación iniciada");
 }
 
 void NavigationClient::feedback_callback(
-  GoalHandleNav::SharedPtr,
-  const std::shared_ptr<const NavigateToPose::Feedback> feedback)
+  const std::shared_ptr<const NavigateToPose::Feedback> feedback, uint64_t seq)
 {
-  // Callback ejecutado periódicamente durante la navegación
-  // FASE 3: Provee información de progreso (distancia, tiempo) para monitorizar
-  
-  // Almacenar el último feedback recibido para consultas no bloqueantes
+  // FASE 3: información de progreso para monitorizar (distancia, tiempo...)
+  if (seq != goal_seq_) {
+    return;
+  }
   last_feedback_ = feedback;
-  
-  // Feedback periódico: distancia restante, tiempo, etc.
-  RCLCPP_DEBUG(node_->get_logger(), 
-               "Distancia restante: %.2f m | Tiempo: %.1f s",
-               feedback->distance_remaining,
-               rclcpp::Duration(feedback->navigation_time).seconds());
-  
-  // Aquí se puede implementar lógica adicional:
-  // - Detectar robot atascado (distancia no disminuye)
-  // - Timeout por exceso de tiempo
-  // - Actualizar UI con progreso
+  RCLCPP_DEBUG(
+    node_->get_logger(), "Distancia restante: %.2f m | Tiempo: %.1f s",
+    feedback->distance_remaining, rclcpp::Duration(feedback->navigation_time).seconds());
 }
 
-void NavigationClient::result_callback(const GoalHandleNav::WrappedResult & result)
+void NavigationClient::result_callback(const GoalHandleNav::WrappedResult & result, uint64_t seq)
 {
-  // Callback ejecutado cuando la navegación finaliza (sea cual sea el resultado)
-  // FASE 4: Actualiza flags para permitir procesar éxito/fallo/cancelación
-  goal_active_ = false;
-  goal_done_ = true;
+  // FASE 4: el objetivo ha terminado en el servidor
+  if (seq != goal_seq_ || state_ != NavigationState::IN_PROGRESS) {
+    // Objetivo anterior, o el cliente ya lo dio por terminado (timeout o cancel_navigation())
+    return;
+  }
 
   switch (result.code) {
     case rclcpp_action::ResultCode::SUCCEEDED:
       RCLCPP_DEBUG(node_->get_logger(), "Navegación completada con ÉXITO");
-      goal_success_ = true;
+      state_ = NavigationState::COMPLETED;
       break;
-      
     case rclcpp_action::ResultCode::ABORTED:
-      RCLCPP_WARN(node_->get_logger(), "Navegación ABORTADA (obstáculo o timeout)");
-      goal_success_ = false;
+      RCLCPP_WARN(node_->get_logger(), "Navegación ABORTADA (obstáculo, sin plan...)");
+      state_ = NavigationState::ERROR;
       break;
-      
     case rclcpp_action::ResultCode::CANCELED:
       RCLCPP_WARN(node_->get_logger(), "Navegación CANCELADA");
-      goal_success_ = false;
+      state_ = NavigationState::CANCELED;
       break;
-      
     default:
-      RCLCPP_ERROR(node_->get_logger(), "Estado desconocido: %d", 
-                   static_cast<int>(result.code));
-      goal_success_ = false;
+      RCLCPP_ERROR(
+        node_->get_logger(), "Estado desconocido: %d", static_cast<int>(result.code));
+      state_ = NavigationState::ERROR;
       break;
   }
+}
+
+void NavigationClient::cancel_goal(const GoalHandleNav::SharedPtr & goal_handle)
+{
+  try {
+    nav_client_->async_cancel_goal(goal_handle);
+  } catch (const rclcpp_action::exceptions::UnknownGoalHandleError &) {
+    // El objetivo ya había terminado: no hay nada que cancelar
+  }
+}
+
+void NavigationClient::finish(NavigationState state)
+{
+  cancel_requested_ = true;  // Si aún no está aceptado, se cancela al aceptarse
+  if (goal_handle_) {
+    cancel_goal(goal_handle_);
+  }
+  state_ = state;
 }
 
 void NavigationClient::cancel_navigation()
 {
-  // Método de control: permite abortar una navegación en progreso
-  // Útil cuando la aplicación decide cambiar de plan (emergencia, timeout, nueva misión)
-  if (goal_handle_ && goal_active_) {
-    RCLCPP_DEBUG(node_->get_logger(), "Cancelando objetivo de navegación");
-    nav_client_->async_cancel_goal(goal_handle_);
-    goal_active_ = false;
+  // Útil cuando la aplicación cambia de plan (emergencia, nueva misión...)
+  if (state_ == NavigationState::IN_PROGRESS) {
+    RCLCPP_INFO(node_->get_logger(), "Navegación cancelada");
+    finish(NavigationState::CANCELED);
   }
 }
 
-bool NavigationClient::wait_for_navigation_result(std::chrono::seconds timeout)
+bool NavigationClient::is_navigation_done()
 {
-  // Método BLOQUEANTE: espera hasta que el goal actual termine
-  // Útil para secuencias de navegación: enviar goal -> esperar -> enviar siguiente
-  // Retorna: true si el goal fue exitoso, false si falló o timeout
-  
-  if (!goal_active_ && goal_done_) {
-    // El goal ya terminó, retornar resultado inmediatamente
-    return goal_success_;
+  if (state_ == NavigationState::IN_PROGRESS && deadline_ && node_->now() > *deadline_) {
+    RCLCPP_WARN(node_->get_logger(), "Navegación: timeout, cancelando el objetivo");
+    finish(NavigationState::TIMEOUT);
   }
-  
-  auto start_time = std::chrono::steady_clock::now();
-  rclcpp::Rate rate(10);  // Verificar cada 100ms
-  
-  while (rclcpp::ok()) {
-    // Procesar callbacks para recibir actualizaciones de estado
-    rclcpp::spin_some(node_->get_node_base_interface());
-    
-    // Verificar si el goal terminó
-    if (goal_done_) {
-      RCLCPP_DEBUG(node_->get_logger(), 
-                   "Goal finalizado: %s", 
-                   goal_success_ ? "ÉXITO" : "FALLO");
-      return goal_success_;
-    }
-    
-    // Verificar timeout
-    auto elapsed = std::chrono::steady_clock::now() - start_time;
-    if (elapsed > timeout) {
-      RCLCPP_WARN(node_->get_logger(), 
-                  "Timeout esperando resultado del goal (%.1f s)", 
-                  std::chrono::duration<double>(timeout).count());
-      cancel_navigation();  // Cancelar el goal si hay timeout
-      return false;
-    }
-    
+  return state_ != NavigationState::IDLE && state_ != NavigationState::IN_PROGRESS;
+}
+
+bool NavigationClient::wait_for_navigation_result()
+{
+  // Método BLOQUEANTE: procesa callbacks hasta que el objetivo termine.
+  // El timeout es el de start_navigation() (lo comprueba is_navigation_done())
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node_->get_node_base_interface());
+  rclcpp::WallRate rate(10);
+  while (rclcpp::ok() && !is_navigation_done()) {
+    // spin_all: todos los eventos pendientes (spin_some ejecuta uno por cliente de acción)
+    executor.spin_all(std::chrono::milliseconds(10));
     rate.sleep();
   }
-  
-  return false;
+  executor.remove_node(node_->get_node_base_interface());
+  RCLCPP_DEBUG(node_->get_logger(), "Objetivo finalizado: %s", to_string(state_));
+  return state_ == NavigationState::COMPLETED;
 }
 
 geometry_msgs::msg::PoseStamped NavigationClient::create_pose_stamped(
   double x, double y, double yaw)
 {
-  // Método auxiliar: simplifica la creación de poses sin gestionar quaterniones
-  // manualmente. Evita repetir código en aplicaciones con múltiples waypoints.
+  // Simplifica crear poses sin gestionar cuaterniones a mano
   geometry_msgs::msg::PoseStamped pose;
   pose.header.frame_id = "map";
   pose.header.stamp = node_->now();
   pose.pose.position.x = x;
   pose.pose.position.y = y;
   pose.pose.position.z = 0.0;
-  
-  // Convertir yaw a quaternion usando TF2
+
+  // Rotación solo en yaw (roll = pitch = 0)
   tf2::Quaternion q;
   q.setRPY(0.0, 0.0, yaw);
   pose.pose.orientation.x = q.x();
   pose.pose.orientation.y = q.y();
   pose.pose.orientation.z = q.z();
   pose.pose.orientation.w = q.w();
-  
+
   return pose;
 }

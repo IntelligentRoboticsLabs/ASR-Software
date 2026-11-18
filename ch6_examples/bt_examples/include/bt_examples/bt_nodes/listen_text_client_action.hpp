@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #ifndef BT_EXAMPLES__LISTEN_TEXT_CLIENT_ACTION_HPP_
 #define BT_EXAMPLES__LISTEN_TEXT_CLIENT_ACTION_HPP_
 
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
+
+#include <memory>
+#include <string>
+
 #include "hri_client/hri_client.hpp"
 
+// ListenTextClient: como ListenText, pero a través de HRIClient (compartido en la
+// blackboard). FAILURE si nadie habla (TIMEOUT) o falla; halt -> cancel_listening().
 class ListenTextClientAction : public BT::StatefulActionNode
 {
 public:
@@ -29,7 +36,9 @@ public:
   static BT::PortsList providedPorts()
   {
     return {
-      BT::OutputPort<std::string>("recognized_text", "Text recognized by ASR")
+      BT::InputPort<double>(
+        "max_wait", 10.0, "Seconds for the person to start speaking (0 = server default)"),
+      BT::OutputPort<std::string>("recognized_text", "Text recognized by STT")
     };
   }
 
@@ -40,7 +49,6 @@ public:
 private:
   std::shared_ptr<rclcpp::Node> node_;
   std::shared_ptr<HRIClient> hri_client_;
-  std::chrono::steady_clock::time_point start_time_;
 };
 
 #endif  // BT_EXAMPLES__LISTEN_TEXT_CLIENT_ACTION_HPP_

@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #ifndef BT_EXAMPLES__EXTRACT_INFO_CLIENT_ACTION_HPP_
 #define BT_EXAMPLES__EXTRACT_INFO_CLIENT_ACTION_HPP_
 
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
+
+#include <memory>
+#include <string>
+
 #include "hri_client/hri_client.hpp"
 
+// ExtractInfoClient: como ExtractInfo, pero a través de HRIClient (compartido en la
+// blackboard). FAILURE si no encuentra nada ("NONE"), falla o se agota el tiempo.
 class ExtractInfoClientAction : public BT::StatefulActionNode
 {
 public:
@@ -30,7 +37,8 @@ public:
   {
     return {
       BT::InputPort<std::string>("interest", "Interest/category to extract"),
-      BT::InputPort<std::string>("full_text", "Full text from ASR"),
+      BT::InputPort<std::string>("full_text", "Full text from STT"),
+      BT::InputPort<double>("timeout", 30.0, "Seconds to wait for the answer (0 = no limit)"),
       BT::OutputPort<std::string>("extracted_info", "Extracted useful information")
     };
   }
@@ -42,7 +50,6 @@ public:
 private:
   std::shared_ptr<rclcpp::Node> node_;
   std::shared_ptr<HRIClient> hri_client_;
-  std::chrono::steady_clock::time_point start_time_;
 };
 
 #endif  // BT_EXAMPLES__EXTRACT_INFO_CLIENT_ACTION_HPP_

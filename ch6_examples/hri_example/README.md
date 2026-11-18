@@ -1,227 +1,82 @@
 # hri_example
 
-Ejemplos de uso de los servicios de Human-Robot Interaction (HRI) proporcionados por el paquete simple_hri.
+Ejemplo de interacción humano-robot (HRI) con `simple_hri` a través de `HRIClient`
+(paquete `hri_client`).
 
 ## Descripción
 
-Este paquete contiene código de ejemplo que demuestra cómo usar los servicios de simple_hri para realizar interacciones de voz con usuarios, incluyendo Speech-to-Text (STT), Text-to-Speech (TTS), extracción de información y detección de respuestas Yes/No.
+`simple_hri_app` es una aplicación modelada como **máquina de estados** que conversa con
+una persona:
 
-### Contenido
+1. Espera a que `simple_hri` esté disponible.
+2. Pregunta el nombre (TTS) y escucha la respuesta (STT). Si nadie habla en 8 s
+   (`TIMEOUT`), reformula la pregunta (hasta 3 intentos).
+3. Extrae el nombre del texto escuchado (Extract). Si no hay nombre (`NONE`), se despide.
+4. Pide confirmación ("Entonces, ¿tu nombre es ...?"), escucha y la interpreta (YesNo).
+5. Se despide y termina.
 
-**Biblioteca HRIClient** (`libhri_client.so`):
-- Clase reutilizable que encapsula los servicios de simple_hri
-- Proporciona métodos para:
-  - Speech-to-Text: Convertir audio a texto
-  - Text-to-Speech: Reproducir texto como audio
-  - Extract: Extraer información específica del audio usando LLM
-  - Yes/No: Detectar respuestas de confirmación
-  - Suscripción al topic `/listened_text`
-
-**Ejecutable simple_hri_app**:
-- Aplicación de ejemplo que utiliza HRIClient
-- Implementa una conversación simple mediante una máquina de estados:
-  1. Saludo al usuario
-  2. Pregunta por el nombre
-  3. Extracción del nombre del audio
-  4. Confirmación del nombre con el usuario
-  5. Despedida
+Cada estado usa una operación de `HRIClient` con el patrón **no bloqueante**: la primera
+vez que entra en el estado llama a `start_*()`; en los ciclos siguientes consulta
+`is_*_done()` y, al terminar, `get_*_state()` decide la transición.
 
 ## Estructura del paquete
 
-```
+```text
 hri_example/
-├── include/hri_example/
-│   ├── hri_client.hpp            # Header de HRIClient
-│   └── simple_hri_app.hpp        # Header de SimpleHRIApp
+├── include/hri_example/simple_hri_app.hpp
 ├── src/
-│   ├── hri_client.cpp            # Implementación de HRIClient
-│   ├── simple_hri_app.cpp        # Implementación de SimpleHRIApp
-│   └── simple_hri_app_main.cpp   # Punto de entrada (main)
+│   ├── simple_hri_app.cpp        # FSM de la conversación
+│   └── simple_hri_app_main.cpp   # main
 ├── CMakeLists.txt
 ├── package.xml
-├── thirdparty.repos              # Dependencias de terceros
-└── README.md
+└── thirdparty.repos              # simple_hri
 ```
+
+`HRIClient` está en el paquete `hri_client` (ver su README).
 
 ## Dependencias
 
-Este paquete depende de:
-- **simple_hri**: Paquete que proporciona los servicios de HRI
-- **simple_hri_interfaces**: Definiciones de mensajes y servicios
-- **audio_common**: Paquete para captura y reproducción de audio
+- `hri_client`
+- `simple_hri` y `simple_hri_interfaces`
 
-### Instalación de dependencias
-
-```bash
-cd ~/asr_ws
-vcs import src < src/hri_example/thirdparty.repos
-```
-
-### Configuración de API keys (para versión cloud)
-
-Para usar las versiones en la nube de los servicios, necesitas configurar:
-
-**OpenAI API** (para STT con Whisper y Extract):
-```bash
-export OPENAI_API_KEY="your_openai_api_key"
-```
-
-**Google Cloud TTS** (para TTS):
-```bash
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/google_credentials.json"
-```
-
-> **Nota:** También puedes usar las versiones locales de los servicios que no requieren conexión a Internet. Ver sección de uso.
+La instalación (rosdep, `vcs import < thirdparty.repos`, entorno virtual de Python con
+las dependencias de `simple_hri`) está en el [README del repositorio](../../README.md).
 
 ## Compilación
 
 ```bash
 cd ~/asr_ws
-colcon build --packages-select hri_example simple_hri simple_hri_interfaces audio_common --symlink-install
+python3 -m colcon build --symlink-install --packages-up-to hri_example simple_hri
 source install/setup.bash
 ```
 
 ## Uso
 
-### Ejecutar el ejemplo (versión cloud)
-
 ```bash
-# Terminal 1: Lanzar los servicios de simple_hri
+# Terminal 1: lanzar simple_hri (todo local y gratis, en español)
 ros2 launch simple_hri simple_hri.launch.py
 
-# Terminal 2: Ejecutar la aplicación de ejemplo
+# Terminal 2: ejecutar la aplicación
 ros2 run hri_example simple_hri_app
 ```
 
-### Ejecutar el ejemplo (versión local - sin Internet)
+La primera vez `simple_hri` descarga los modelos (varios GB) en `models/` del directorio
+desde el que se lanza. Otros *backends*: `backend:=ollama`, `backend:=hf`, `backend:=cloud`
+(ver el README de `simple_hri`).
 
-```bash
-# Terminal 1: Lanzar los servicios locales de simple_hri
-ros2 launch simple_hri local_simple_hri.launch.py
+## Capacidades de simple_hri
 
-# Terminal 2: Ejecutar la aplicación de ejemplo
-ros2 run hri_example simple_hri_app
-```
-
-### Flujo de la conversación
-
-1. La aplicación espera a que los servicios estén disponibles
-2. Saluda al usuario: "Hello! I am a robot. What is your name?"
-3. Escucha y extrae el nombre del usuario
-4. Confirma: "Nice to meet you, [nombre]. Is that correct?"
-5. Si el usuario dice "yes", se despide: "Great! It was nice talking to you, [nombre]."
-6. Si el usuario dice "no", vuelve a preguntar el nombre
-
-## Usar HRIClient en tu propio paquete
-
-### 1. Añadir dependencia en `package.xml`:
-
-```xml
-<depend>hri_example</depend>
-<depend>simple_hri_interfaces</depend>
-```
-
-### 2. Configurar `CMakeLists.txt`:
-
-```cmake
-find_package(hri_example REQUIRED)
-find_package(simple_hri_interfaces REQUIRED)
-
-add_executable(mi_aplicacion src/mi_aplicacion.cpp)
-
-target_link_libraries(mi_aplicacion
-  ${hri_example_LIBRARIES}
-)
-
-ament_target_dependencies(mi_aplicacion
-  rclcpp
-  hri_example
-  simple_hri_interfaces
-  std_msgs
-  std_srvs
-)
-```
-
-### 3. Incluir el header en tu código:
-
-```cpp
-#include "hri_example/hri_client.hpp"
-
-class MiAplicacion : public rclcpp::Node
-{
-public:
-  MiAplicacion() : Node("mi_aplicacion")
-  {
-    hri_client_ = std::make_shared<HRIClient>();
-    
-    // Esperar servicios
-    if (hri_client_->wait_until_ready()) {
-      // Usar TTS
-      hri_client_->call_tts_service("Hello World");
-      
-      // Usar STT
-      std::string text;
-      if (hri_client_->call_stt_service(text)) {
-        RCLCPP_INFO(get_logger(), "Usuario dijo: %s", text.c_str());
-      }
-      
-      // Extraer información
-      std::string name;
-      if (hri_client_->call_extract_service("person's name", name)) {
-        RCLCPP_INFO(get_logger(), "Nombre: %s", name.c_str());
-      }
-      
-      // Detectar Yes/No
-      bool said_yes;
-      if (hri_client_->call_yesno_service(said_yes)) {
-        RCLCPP_INFO(get_logger(), "Usuario dijo: %s", said_yes ? "Yes" : "No");
-      }
-    }
-  }
-  
-private:
-  std::shared_ptr<HRIClient> hri_client_;
-};
-```
-
-## API de HRIClient
-
-### Métodos principales
-
-- `bool wait_until_ready(std::chrono::seconds timeout)`: Espera a que todos los servicios estén disponibles
-- `bool call_stt_service(std::string & transcribed_text)`: Convierte audio a texto
-- `bool call_tts_service(const std::string & text)`: Reproduce texto como audio
-- `bool call_extract_service(const std::string & interest, std::string & extracted_info)`: Extrae información específica
-- `bool call_yesno_service(bool & user_said_yes)`: Detecta respuestas Yes/No
-- `std::string get_last_listened_text()`: Obtiene el último texto del topic `/listened_text`
-
-### Servicios disponibles
-
-| Servicio | Tipo | Descripción |
-|----------|------|-------------|
-| `/stt_service` | `std_srvs/SetBool` | Speech-to-Text |
-| `/tts_service` | `simple_hri_interfaces/Speech` | Text-to-Speech |
-| `/extract_service` | `simple_hri_interfaces/Extract` | Extracción con LLM |
-| `/yesno_service` | `std_srvs/SetBool` | Detección Yes/No |
-
-### Topics
-
-| Topic | Tipo | Descripción |
-|-------|------|-------------|
-| `/listened_text` | `std_msgs/String` | Texto transcrito por STT |
+| Capacidad | Interfaz | Tipo |
+| --- | --- | --- |
+| Escuchar (STT) | `/stt_action` | `simple_hri_interfaces/action/Listen` |
+| Hablar (TTS) | `/tts_action` | `simple_hri_interfaces/action/Say` |
+| Extraer información | `/extract_service` | `simple_hri_interfaces/srv/Extract` |
+| Sí/No | `/yesno_service` | `simple_hri_interfaces/srv/YesNo` |
+| Texto escuchado | `/listened_text` (topic) | `std_msgs/msg/String` |
 
 ## Notas
 
-- Los servicios son **bloqueantes**: la llamada espera hasta que el servicio complete
-- El servicio STT graba automáticamente cuando detecta voz (VAD)
-- El servicio Extract puede recibir texto directamente o grabar audio si se deja vacío
-- Los servicios locales son más lentos pero no requieren conexión a Internet
-- Asegúrate de que el micrófono y los altavoces estén configurados correctamente
-
-## Licencia
-
-Apache-2.0
-
-## Autor
-
-ASR Course - Intelligent Robotics Lab
+- Escuchar **después** de que el robot termine de hablar: si no, el micrófono graba la voz
+  del propio robot.
+- Extract y YesNo no graban audio: trabajan sobre el texto que devuelve STT.
+- La aplicación termina (`rclcpp::shutdown()`) al llegar al estado `DONE`.

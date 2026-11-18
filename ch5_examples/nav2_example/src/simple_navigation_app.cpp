@@ -25,10 +25,15 @@ SimpleNavigationApp::SimpleNavigationApp()
   //    - El cliente usará este nodo para crear clientes, timers, logging, etc.
   nav_client_ = std::make_shared<NavigationClient>(this);
   
-  // 2. Usar create_pose_stamped() para construir el objetivo
-  //    Método auxiliar: simplifica crear poses sin quaterniones manuales
-  target_pose_ = nav_client_->create_pose_stamped(6.0, -2.0, 0.0);
-  
+  // 2. Objetivo (frame map) y tiempo máximo para alcanzarlo, como PARÁMETROS:
+  //    se cambian sin recompilar (--ros-args -p x:=... -p goal_timeout:=...)
+  //    create_pose_stamped(): construye el objetivo sin cuaterniones manuales
+  //    declare_parameter() devuelve el valor (el de por defecto o el de la línea de comandos)
+  target_pose_ = nav_client_->create_pose_stamped(
+    declare_parameter("x", 6.0), declare_parameter("y", -2.0), declare_parameter("yaw", 0.0));
+  // Segundos de tiempo del ROBOT para alcanzar el objetivo; después se cancela (TIMEOUT)
+  goal_timeout_ = declare_parameter("goal_timeout", 120.0);
+
   RCLCPP_INFO(get_logger(), "Aplicación de navegación iniciada");
   
   // 3. Timer periódico: patron NO BLOQUEANTE
@@ -52,17 +57,18 @@ void SimpleNavigationApp::control_cycle()
   }
   
   // FASE 2: Activar la CAPACIDAD (enviar objetivo)
-  // Usa: start_navigation(target_pose)
+  // Usa: start_navigation(target_pose, timeout)
   // Propósito: Solicitar navegación de forma asíncrona (no bloquea)
   if (!goal_sent_) {
     RCLCPP_INFO(get_logger(), "Enviando objetivo de navegación...");
-    nav_client_->start_navigation(target_pose_);
+    nav_client_->start_navigation(target_pose_, goal_timeout_);
     goal_sent_ = true;
     return;
   }
 
   // FASE 3: Monitorizar PROGRESO de la capacidad
-  // Usa: is_navigation_done() para verificar si la capacidad terminó
+  // Usa: is_navigation_done() para verificar si la capacidad terminó (también comprueba
+  //      el timeout: si se agota, cancela el objetivo)
   // Usa: get_navigation_feedback() para obtener información de progreso
   if (!nav_client_->is_navigation_done()) {
     // Objetivo en progreso: consultar feedback (opcional pero útil)
@@ -77,15 +83,18 @@ void SimpleNavigationApp::control_cycle()
   }
   
   // FASE 4: Procesar RESULTADO de la capacidad
-  // Usa: was_goal_successful() para distinguir éxito/fallo
+  // Usa: get_navigation_state() para saber CÓMO terminó
   // Propósito: Tomar decisiones según el resultado (continuar, reintentar, etc.)
-  if (nav_client_->was_goal_successful()) {
+  auto state = nav_client_->get_navigation_state();
+  if (state == NavigationState::COMPLETED) {
     RCLCPP_INFO(get_logger(), "Navegación completada con éxito");
   } else {
-    RCLCPP_WARN(get_logger(), "Navegación fallida");
+    // ERROR (Nav2 lo abortó o rechazó), TIMEOUT o CANCELED
+    RCLCPP_WARN(get_logger(), "Navegación fallida (%s)", to_string(state));
   }
-  
-  // Detener el timer, tarea completada
+
+  // Tarea completada: detener el timer y terminar (rclcpp::spin() retorna en main)
   timer_->cancel();
   RCLCPP_INFO(get_logger(), "Aplicación finalizada");
+  rclcpp::shutdown();
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "bt_examples/bt_nodes/listen_text_client_action.hpp"
 
 ListenTextClientAction::ListenTextClientAction(
@@ -31,43 +32,37 @@ BT::NodeStatus ListenTextClientAction::onStart()
 {
   RCLCPP_INFO(node_->get_logger(), "Listening for speech...");
 
-  // Usar HRIClient para iniciar STT
-  hri_client_->start_listening();
-  start_time_ = std::chrono::steady_clock::now();
-  
+  // Usar HRIClient para iniciar STT: el servidor deja de grabar si nadie EMPIEZA a
+  // hablar en max_wait segundos (TIMEOUT)
+  hri_client_->start_listening(getInput<double>("max_wait").value_or(10.0));
+
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus ListenTextClientAction::onRunning()
 {
-  // Verificar timeout (60 segundos, el STT puede tardar más)
-  auto elapsed = std::chrono::steady_clock::now() - start_time_;
-  if (elapsed > std::chrono::seconds(60)) {
-    RCLCPP_ERROR(node_->get_logger(), "STT operation timeout");
+  if (!hri_client_->is_listening_done()) {
+    return BT::NodeStatus::RUNNING;
+  }
+
+  // Cómo terminó: COMPLETED, ERROR, TIMEOUT (nadie habló) o CANCELED
+  auto state = hri_client_->get_listening_state();
+  std::string recognized_text = hri_client_->get_listened_text();
+  if (state != OperationState::COMPLETED || recognized_text.empty()) {
+    RCLCPP_ERROR(node_->get_logger(), "STT operation failed (%s)", to_string(state));
     return BT::NodeStatus::FAILURE;
   }
 
-  // Verificar si HRIClient terminó de escuchar
-  if (hri_client_->is_listening_done()) {
-    std::string recognized_text = hri_client_->get_listened_text();
-    
-    if (recognized_text.empty()) {
-      RCLCPP_ERROR(node_->get_logger(), "STT operation returned empty text");
-      return BT::NodeStatus::FAILURE;
-    }
+  RCLCPP_INFO(node_->get_logger(), "Recognized: '%s'", recognized_text.c_str());
 
-    RCLCPP_INFO(node_->get_logger(), "Recognized: '%s'", recognized_text.c_str());
-    
-    // Escribir el texto reconocido en el puerto de salida
-    setOutput("recognized_text", recognized_text);
-    
-    return BT::NodeStatus::SUCCESS;
-  }
-
-  return BT::NodeStatus::RUNNING;
+  // Escribir el texto reconocido en el puerto de salida
+  setOutput("recognized_text", recognized_text);
+  return BT::NodeStatus::SUCCESS;
 }
 
 void ListenTextClientAction::onHalted()
 {
+  // Si el árbol interrumpe este nodo, el robot deja de grabar
   RCLCPP_WARN(node_->get_logger(), "STT action halted");
+  hri_client_->cancel_listening();
 }

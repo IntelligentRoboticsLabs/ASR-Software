@@ -15,7 +15,7 @@
 #ifndef HRI_EXAMPLE__SIMPLE_HRI_APP_HPP_
 #define HRI_EXAMPLE__SIMPLE_HRI_APP_HPP_
 
-#include <mutex>
+#include <string>
 #include "rclcpp/rclcpp.hpp"
 #include "hri_client/hri_client.hpp"
 
@@ -44,13 +44,20 @@ private:
     DONE
   };
   
+  // Cambia de estado y lo registra en el log
+  void go_to_state(State new_state);
+
   State current_state_ = State::WAITING_FOR_SERVICES;
   std::string user_name_, yes_no_;
   std::string listened_text_;
-  bool on_duty_ = false;
-  
-  // Mutex para prevenir ejecuciones concurrentes
-  std::mutex control_mutex_;
+  bool on_duty_ = false;  // true: la operación del estado actual ya está lanzada
+
+  // Pregunta del saludo y reintentos si no se oye a la persona
+  std::string question_ = "Hola, ¿cómo te llamas?";
+  int listen_attempts_ = 0;
+  static constexpr int MAX_LISTEN_ATTEMPTS = 3;
+  // Segundos para que la persona EMPIECE a hablar (lo aplica el servidor de STT)
+  static constexpr double LISTEN_TIMEOUT = 8.0;
 };
 
 #endif  // HRI_EXAMPLE__SIMPLE_HRI_APP_HPP_

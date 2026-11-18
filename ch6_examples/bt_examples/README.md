@@ -4,39 +4,23 @@ Este paquete contiene ejemplos progresivos de implementación de Behavior Trees 
 
 > **📌 Nota importante**: El código de estos ejemplos está alineado con los fragmentos de código que aparecen en el libro (Capítulo 8 y Práctica 5). Los patrones, comentarios y estructura siguen exactamente los presentados en el material teórico para facilitar el seguimiento en clase:
 > - **Bump-and-Go**: Práctica 5, secciones 5.3.6 y 5.3.7 (Ejemplo completo con puertos y blackboard)
-> - **Drink Order**: Ejemplo básico de HRI con TTS y ASR usando simple_hri
+> - **Drink Order**: Ejemplo básico de HRI con TTS y STT usando simple_hri
 
 ## � Requisitos previos
 
 Este paquete requiere:
-- **BehaviorTree.CPP** (rama master)
-- **simple_hri** - Servicios de TTS y ASR para HRI
+- **BehaviorTree.CPP** (v4): se instala con `rosdep` (`ros-jazzy-behaviortree-cpp`)
+- **simple_hri** - Escuchar y hablar (acciones), extraer información (servicio)
 
-Las dependencias de terceros se gestionan mediante el archivo `thirdparty.repos`.
-
-### Instalación de dependencias
+La instalación (rosdep, `vcs import < thirdparty.repos`, entorno virtual de Python) está
+en el [README del repositorio](../../README.md). Para compilar solo este paquete y lo que
+necesita:
 
 ```bash
-# Navegar al workspace
-cd ~/UNI/docencia/repos/ASR/asr_ws
-
-# Instalar dependencias de terceros usando vcstool
-vcs import src/thirdparty < src/bt_examples/thirdparty.repos
-
-# Compilar las dependencias
-colcon build --packages-up-to behaviortree_cpp simple_hri
-
-# Compilar el paquete bt_examples
-colcon build --packages-select bt_examples
-
-# Cargar el entorno
+cd ~/asr_ws
+python3 -m colcon build --symlink-install --packages-up-to bt_examples
 source install/setup.bash
 ```
-
-> **💡 Nota**: Si `vcstool` no está instalado, instálalo con:
-> ```bash
-> sudo apt install python3-vcstool
-> ```
 
 ## 🚀 Quick Start
 
@@ -53,8 +37,8 @@ ros2 launch bt_examples bumpandgo_bt_example.launch.py --show-args
 ### Drink Order (Interacción básica HRI)
 
 ```bash
-# Asegúrate de que los servicios de simple_hri estén ejecutándose
-ros2 launch simple_hri tts_listen.launch.py
+# Asegúrate de que simple_hri esté ejecutándose (acciones de escuchar/hablar y servicios)
+ros2 launch simple_hri simple_hri.launch.py
 
 # En otra terminal, ejecuta el ejemplo
 ros2 launch bt_examples drink_order_bt_example.launch.py
@@ -167,7 +151,7 @@ ros2 launch bt_examples bumpandgo_bt_example.launch.py
 
 **Archivo**: `drink_order_bt_example.cpp`
 
-**Descripción**: Ejemplo simple de interacción humano-robot usando Behavior Trees con capacidades de TTS (Text-To-Speech) y ASR (Automatic Speech Recognition). El robot pregunta a la persona qué quiere beber, escucha la respuesta, y repite lo que ha entendido.
+**Descripción**: Ejemplo simple de interacción humano-robot usando Behavior Trees con capacidades de TTS (Text-To-Speech) y STT (Speech-To-Text). El robot pregunta a la persona qué quiere beber, escucha la respuesta, y repite lo que ha entendido.
 
 **Arquitectura del árbol**:
 ```
@@ -187,14 +171,13 @@ Sequence (DrinkOrderSequence)
 
 **Ejecución**:
 ```bash
-# Terminal 1: Iniciar servicios de HRI (incluye extract)
+# Terminal 1: lanzar simple_hri (todo local y gratis, en español)
 ros2 launch simple_hri simple_hri.launch.py
 
-# Terminal 2: Configurar API key de OpenAI
-export OPENAI_API_KEY="tu-clave-api"
-
-# Terminal 3: Ejecutar el ejemplo
+# Terminal 2: ejecutar el ejemplo (variante con HRIClient)
 ros2 launch bt_examples drink_order_bt_example.launch.py
+# o la variante con los nodos que usan directamente las acciones/servicios
+ros2 run bt_examples drink_order_bt_example
 ```
 
 **Comportamiento observable**:
@@ -206,38 +189,41 @@ ros2 launch bt_examples drink_order_bt_example.launch.py
 
 **Nodos HRI personalizados**:
 
-#### SayText (Acción)
-- **Puerto de entrada**: `text` (string) - Texto a decir (puede contener plantillas con {variable})
-- **Service client**: `/tts_service` (simple_hri_interfaces/srv/Speech)
-- **Lógica**: 
-  - Lee el texto del puerto de entrada
-  - Envía el texto al servicio TTS
-  - Espera a que termine de hablar (síncrono)
-  - Retorna SUCCESS cuando termina
+En `simple_hri`, escuchar y hablar son **acciones** (duran segundos, dan *feedback*, se
+pueden cancelar y hablar termina cuando el audio termina de verdad); extraer información
+es un **servicio** (una consulta sobre el texto escuchado). Hay dos variantes de cada nodo:
 
-#### ListenText (Acción)
-- **Puerto de salida**: `recognized_text` (string) - Texto reconocido por ASR
-- **Service client**: `/stt_service` (std_srvs/srv/SetBool)
-- **Lógica**:
-  - Llama al servicio STT con request.data = true
-  - Espera a que el usuario hable y el sistema transcriba (síncrono, puede tardar)
-  - Recibe el texto transcrito en response.message
-  - Escribe el texto reconocido en el blackboard
-  - Retorna SUCCESS con el texto reconocido
+- `SayText`, `ListenText`, `ExtractInfo`: usan directamente la acción o el servicio
+  (`ActionCall` de `hri_client` sigue el goal sin bloquear).
+- `SayTextClient`, `ListenTextClient`, `ExtractInfoClient`: usan `HRIClient`, compartido
+  en la blackboard (`hri_client`). Mismo contrato que `NavigationClient`.
 
-#### ExtractInfo (Acción)
-- **Puerto de entrada**: 
-  - `interest` (string) - Interés/categoría a extraer (ej: "bebida", "lugar", "persona")
-  - `full_text` (string) - Texto completo del ASR
-- **Puerto de salida**: `extracted_info` (string) - Información útil extraída
-- **Service client**: `/extract` (simple_hri_interfaces/srv/Extract)
-- **Lógica**:
-  - Recibe el interés (categoría) y el texto completo del reconocimiento de voz
-  - Llama al servicio Extract con ambos parámetros
-  - Usa IA (OpenAI GPT) para extraer solo la información relevante según el interés
-  - Escribe la información extraída en el blackboard
-  - Si no se extrae nada, usa el texto original
-  - Retorna SUCCESS con la información extraída
+En ambas, `onStart()` lanza la operación, `onRunning()` consulta si ha terminado y
+`onHalted()` la **cancela** (el robot deja de hablar o de grabar si el árbol interrumpe
+la rama, p. ej. con un `Timeout`).
+
+#### SayText / SayTextClient (Acción)
+- **Puertos de entrada**: `text` (string, admite plantillas `{variable}`); `timeout`
+  (solo la variante Client, segundos, `0` = sin límite)
+- **Interfaz**: acción `/tts_action` (`simple_hri_interfaces/action/Say`)
+- **Resultado**: SUCCESS cuando el audio termina; FAILURE si falla o se agota el tiempo
+
+#### ListenText / ListenTextClient (Acción)
+- **Puerto de entrada**: `max_wait` (double, por defecto 10) - segundos para que la persona
+  **empiece** a hablar (lo aplica el servidor)
+- **Puerto de salida**: `recognized_text` (string) - texto transcrito
+- **Interfaz**: acción `/stt_action` (`simple_hri_interfaces/action/Listen`)
+- **Resultado**: SUCCESS con el texto; FAILURE si nadie habla (timeout) o falla
+
+#### ExtractInfo / ExtractInfoClient (Acción)
+- **Puertos de entrada**: `interest` (string, categoría: "bebida", "nombre"...) y
+  `full_text` (string, texto de ListenText); `timeout` (solo Client, por defecto 30 s)
+- **Puerto de salida**: `extracted_info` (string) - valores separados por `;`
+  (`formatText` los convierte en "agua y café" al decirlos)
+- **Interfaz**: servicio `/extract_service` (`simple_hri_interfaces/srv/Extract`). No
+  graba audio: trabaja sobre el texto
+- **Resultado**: SUCCESS con la información; FAILURE si no hay nada de esa categoría
+  (`NONE`), falla o se agota el tiempo
 
 **Por qué usar ExtractInfo:**
 En una conversación real, el usuario no dice solo "agua", sino frases como:
@@ -250,11 +236,10 @@ ExtractInfo procesa estas frases complejas y extrae únicamente la información 
 **Requisitos adicionales**:
 - Paquete `simple_hri` instalado y ejecutándose
 - Micrófono y altavoces funcionales
-- Modelos de ASR/TTS configurados en simple_hri
-- **Variable de entorno `OPENAI_API_KEY` configurada** (para ExtractInfo)
-  ```bash
-  export OPENAI_API_KEY="tu-clave-api"
-  ```
+- Con `backend:=local` (por defecto) no hace falta ninguna clave: los modelos se descargan
+  la primera vez. Con `backend:=cloud`, `OPENAI_API_KEY` y `GOOGLE_APPLICATION_CREDENTIALS`
+- Categorías que **no se solapen** al extraer varias de una misma frase: "comida"
+  también incluye el postre; mejor "plato" y "postre"
 
 ---
 
@@ -337,12 +322,9 @@ Edita `config/bumpandgo_tree.xml` para:
 **Error: "Extract service not available"** (drink order)
 ```bash
 # Verificar que el servicio extract esté ejecutándose
-ros2 service list | grep extract
+ros2 service list | grep -E "(extract|yesno)"
 
-# Verificar variable de entorno
-echo $OPENAI_API_KEY
-
-# Iniciar servicios de HRI con extract si no están activos
+# Iniciar simple_hri si no está activo (espera a los mensajes "ready": carga modelos)
 ros2 launch simple_hri simple_hri.launch.py
 ```
 
@@ -369,10 +351,10 @@ ros2 topic echo /scan --once
 **Error: "TTS/Listen action server not available"** (drink order)
 ```bash
 # Verificar que simple_hri esté ejecutándose
-ros2 action list | grep -E "(say|listen)"
+ros2 action list   # /stt_action, /tts_action
 
-# Iniciar servicios de HRI si no están activos
-ros2 launch simple_hri tts_listen.launch.py
+# Iniciar simple_hri si no está activo
+ros2 launch simple_hri simple_hri.launch.py
 ```
 
 **No se reconoce la voz** (drink order)
@@ -380,10 +362,9 @@ ros2 launch simple_hri tts_listen.launch.py
 # Verificar micrófono
 arecord -l
 
-# Probar ASR directamente
-ros2 action send_goal /listen simple_hri_interfaces/action/Listen "{}"
-```
-ros2 topic echo /scan --once
+# Probar STT y TTS directamente
+ros2 action send_goal /stt_action simple_hri_interfaces/action/Listen "{max_wait: 8.0}"
+ros2 action send_goal /tts_action simple_hri_interfaces/action/Say "{text: 'Hola'}"
 ```
 
 ---

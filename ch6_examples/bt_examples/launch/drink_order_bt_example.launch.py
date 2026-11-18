@@ -27,7 +27,8 @@ def generate_launch_description():
     2. Robot listens to the response
     3. Robot repeats what it heard
     
-    Requires simple_hri TTS and ASR services to be running.
+    Requires simple_hri to be running (ros2 launch simple_hri simple_hri.launch.py):
+    the /tts_action and /stt_action actions and the /extract_service service.
     """
     
     # Behavior Tree node

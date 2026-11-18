@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "bt_examples/bt_nodes/say_text_client_action.hpp"
 #include "bt_examples/text_utils.hpp"
 
@@ -47,37 +48,32 @@ BT::NodeStatus SayTextClientAction::onStart()
 
   RCLCPP_INFO(node_->get_logger(), "Saying: '%s'", text.c_str());
 
-  // Usar HRIClient para iniciar TTS
-  hri_client_->start_speaking(text);
-  start_time_ = std::chrono::steady_clock::now();
-  
+  // Usar HRIClient para iniciar TTS (el timeout lo gestiona el cliente)
+  hri_client_->start_speaking(text, getInput<double>("timeout").value_or(0.0));
+
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus SayTextClientAction::onRunning()
 {
-  // Verificar timeout (30 segundos)
-  auto elapsed = std::chrono::steady_clock::now() - start_time_;
-  if (elapsed > std::chrono::seconds(30)) {
-    RCLCPP_ERROR(node_->get_logger(), "TTS operation timeout");
-    return BT::NodeStatus::FAILURE;
+  if (!hri_client_->is_speaking_done()) {
+    return BT::NodeStatus::RUNNING;
   }
 
-  // Verificar si HRIClient terminó de hablar
-  if (hri_client_->is_speaking_done()) {
-    if (hri_client_->get_speaking_result()) {
-      RCLCPP_INFO(node_->get_logger(), "TTS completed successfully");
-      return BT::NodeStatus::SUCCESS;
-    } else {
-      RCLCPP_ERROR(node_->get_logger(), "TTS operation failed");
-      return BT::NodeStatus::FAILURE;
-    }
+  // Cómo terminó: COMPLETED, ERROR, TIMEOUT o CANCELED
+  auto state = hri_client_->get_speaking_state();
+  if (state == OperationState::COMPLETED) {
+    RCLCPP_INFO(node_->get_logger(), "TTS completed successfully");
+    return BT::NodeStatus::SUCCESS;
   }
 
-  return BT::NodeStatus::RUNNING;
+  RCLCPP_ERROR(node_->get_logger(), "TTS operation failed (%s)", to_string(state));
+  return BT::NodeStatus::FAILURE;
 }
 
 void SayTextClientAction::onHalted()
 {
+  // Si el árbol interrumpe este nodo, el robot deja de hablar
   RCLCPP_WARN(node_->get_logger(), "TTS action halted");
+  hri_client_->cancel_speaking();
 }

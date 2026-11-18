@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "bt_examples/bt_nodes/listen_text_action.hpp"
 
 ListenTextAction::ListenTextAction(
@@ -22,66 +23,61 @@ ListenTextAction::ListenTextAction(
   if (!config.blackboard->get("node", node_)) {
     throw BT::RuntimeError("Missing required node in blackboard");
   }
-  stt_client_ = node_->create_client<SetBool>("/stt_service");
+  stt_client_ = rclcpp_action::create_client<Listen>(node_, "/stt_action");
 }
 
 BT::NodeStatus ListenTextAction::onStart()
 {
-  // Esperar a que el servidor esté disponible
-  if (!stt_client_->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_ERROR(node_->get_logger(), "STT service not available");
+  // Esperar a que el servidor de la acción esté disponible
+  if (!stt_client_->wait_for_action_server(std::chrono::seconds(1))) {
+    RCLCPP_ERROR(node_->get_logger(), "STT action (/stt_action) not available");
     return BT::NodeStatus::FAILURE;
   }
 
-  // Crear la petición (true para iniciar el reconocimiento)
-  auto request = std::make_shared<SetBool::Request>();
-  request->data = true;
+  // El servidor deja de grabar si nadie EMPIEZA a hablar en max_wait segundos
+  Listen::Goal goal;
+  goal.max_wait = static_cast<float>(getInput<double>("max_wait").value_or(10.0));
 
   RCLCPP_INFO(node_->get_logger(), "Listening for speech...");
 
-  // Enviar petición asíncrona
-  future_ = stt_client_->async_send_request(request);
-  start_time_ = std::chrono::steady_clock::now();
-  
+  // Enviar el goal SIN BLOQUEAR: onRunning() consulta si ha terminado
+  call_ = std::make_unique<hri_client::ActionCall<Listen>>(stt_client_, goal);
+
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus ListenTextAction::onRunning()
 {
-  // Verificar timeout (60 segundos, el STT puede tardar más)
-  auto elapsed = std::chrono::steady_clock::now() - start_time_;
-  if (elapsed > std::chrono::seconds(60)) {
-    RCLCPP_ERROR(node_->get_logger(), "STT service timeout");
-    future_.reset();
+  auto finished = call_->poll();
+  if (!finished) {
+    return BT::NodeStatus::RUNNING;  // Escuchando o transcribiendo
+  }
+  call_.reset();
+
+  const auto & result = finished->result;
+  if (finished->code != rclcpp_action::ResultCode::SUCCEEDED || !result || !result->success) {
+    if (result && result->timed_out) {
+      RCLCPP_WARN(node_->get_logger(), "STT timed out: nobody spoke");
+    } else {
+      RCLCPP_ERROR(
+        node_->get_logger(), "STT failed: %s", result ? result->message.c_str() : "goal rejected");
+    }
     return BT::NodeStatus::FAILURE;
   }
 
-  // Verificar si el future está listo
-  if (future_ && future_->future.valid() && 
-      future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-    auto response = future_->future.get();
-    future_.reset();
-    
-    if (!response->success) {
-      RCLCPP_ERROR(node_->get_logger(), "STT service failed: %s", response->message.c_str());
-      return BT::NodeStatus::FAILURE;
-    }
+  RCLCPP_INFO(node_->get_logger(), "Recognized: '%s'", result->text.c_str());
 
-    // El texto reconocido viene en response->message
-    std::string recognized_text = response->message;
-    RCLCPP_INFO(node_->get_logger(), "Recognized: '%s'", recognized_text.c_str());
-    
-    // Escribir el texto reconocido en el puerto de salida
-    setOutput("recognized_text", recognized_text);
-    
-    return BT::NodeStatus::SUCCESS;
-  }
-
-  return BT::NodeStatus::RUNNING;
+  // Escribir el texto reconocido en el puerto de salida
+  setOutput("recognized_text", result->text);
+  return BT::NodeStatus::SUCCESS;
 }
 
 void ListenTextAction::onHalted()
 {
+  // Si el árbol interrumpe este nodo, el robot deja de grabar
   RCLCPP_WARN(node_->get_logger(), "STT action halted");
-  future_.reset();
+  if (call_) {
+    call_->cancel();
+    call_.reset();
+  }
 }

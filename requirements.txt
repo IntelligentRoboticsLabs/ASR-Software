@@ -1,0 +1,7 @@
+# Dependencias Python del curso. Se instalan en el entorno virtual del workspace
+# (ver README.md):  python3 -m pip install -r src/requirements.txt
+colcon-common-extensions
+# Interacción humano-robot (simple_hri): voz, modelos de lenguaje
+-r thirdparty/simple_hri/simple_hri/requirements.txt
+# Detección de objetos (yolo_ros)
+-r ch3_examples/yolo_ros/requirements.txt

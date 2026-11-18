@@ -3,14 +3,14 @@
 <package format="3">
   <name>hri_client</name>
   <version>1.0.0</version>
-  <description>Cliente reutilizable para servicios de simple_hri (STT, TTS, Extract, YesNo)</description>
+  <description>Cliente reutilizable de simple_hri: escuchar y hablar (acciones), extraer y sí/no (servicios)</description>
   <maintainer email="user@todo.todo">ASR Course</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>std_srvs</depend>
+  <depend>rclcpp_action</depend>
   <depend>std_msgs</depend>
   <depend>simple_hri_interfaces</depend>
 

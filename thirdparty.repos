@@ -1,0 +1,8 @@
+# Paquetes de terceros que se descargan en src/thirdparty (ver README.md):
+#   cd ~/asr_ws/src && vcs import < thirdparty.repos
+# BehaviorTree.CPP y el resto de dependencias de ROS 2 se instalan con rosdep.
+repositories:
+  thirdparty/simple_hri:
+    type: git
+    url: https://github.com/rodperex/simple_hri.git
+    version: main

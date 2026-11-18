@@ -13,7 +13,6 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
@@ -53,7 +52,6 @@ target_link_libraries(bt_nodes PUBLIC
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   ${std_msgs_TARGETS}
-  ${std_srvs_TARGETS}
   ${sensor_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
   tf2_ros::tf2_ros
@@ -81,11 +79,8 @@ add_executable(drink_order_bt_example src/drink_order_bt_example.cpp)
 target_link_libraries(drink_order_bt_example
   bt_nodes
   rclcpp::rclcpp
-  rclcpp_action::rclcpp_action
-  ${std_msgs_TARGETS}
   ament_index_cpp::ament_index_cpp
   behaviortree_cpp::behaviortree_cpp
-  ${simple_hri_interfaces_TARGETS}
 )
 
 # Drink order BT example with HRIClient

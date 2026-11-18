@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "bt_examples/bt_nodes/extract_info_action.hpp"
 
 ExtractInfoAction::ExtractInfoAction(
@@ -34,7 +35,8 @@ BT::NodeStatus ExtractInfoAction::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  // Obtener el texto completo del puerto de entrada
+  // Obtener el texto completo del puerto de entrada (Extract no graba audio: el texto
+  // viene de ListenText)
   std::string full_text;
   if (!getInput("full_text", full_text)) {
     RCLCPP_ERROR(node_->get_logger(), "ExtractInfoAction: 'full_text' input port is required");
@@ -52,40 +54,45 @@ BT::NodeStatus ExtractInfoAction::onStart()
   request->interest = interest;
   request->text = full_text;
 
-  RCLCPP_INFO(node_->get_logger(), "Extracting '%s' from: '%s'", interest.c_str(), full_text.c_str());
+  RCLCPP_INFO(
+    node_->get_logger(), "Extracting '%s' from: '%s'", interest.c_str(), full_text.c_str());
 
   // Enviar petición asíncrona
   future_ = extract_client_->async_send_request(request);
   start_time_ = std::chrono::steady_clock::now();
-  
+
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus ExtractInfoAction::onRunning()
 {
-  // Verificar timeout (10 segundos)
+  // Verificar timeout (30 segundos: un LLM local en CPU puede tardar)
   auto elapsed = std::chrono::steady_clock::now() - start_time_;
-  if (elapsed > std::chrono::seconds(10)) {
+  if (elapsed > std::chrono::seconds(30)) {
     RCLCPP_ERROR(node_->get_logger(), "Extract service timeout");
-    future_.reset();
+    onHalted();
     return BT::NodeStatus::FAILURE;
   }
 
   // Verificar si el future está listo
-  if (future_ && future_->future.valid() && 
-      future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+  if (future_ && future_->future.valid() &&
+    future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)
+  {
     auto response = future_->future.get();
     future_.reset();
-    
-    if (response->result.empty()) {
-      RCLCPP_WARN(node_->get_logger(), "Extract service returned empty result");
-      // Si no se extrajo nada útil, marcar como fallo
+
+    // simple_hri devuelve "NONE" si no hay nada relevante y "ERROR..." si falla
+    if (response->result.empty() || response->result == "NONE" ||
+      response->result.rfind("ERROR", 0) == 0)
+    {
+      RCLCPP_WARN(
+        node_->get_logger(), "Extract found nothing: '%s'", response->result.c_str());
       return BT::NodeStatus::FAILURE;
     }
 
     RCLCPP_INFO(node_->get_logger(), "Extracted: '%s'", response->result.c_str());
     setOutput("extracted_info", response->result);
-    
+
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -94,6 +101,9 @@ BT::NodeStatus ExtractInfoAction::onRunning()
 
 void ExtractInfoAction::onHalted()
 {
-  RCLCPP_WARN(node_->get_logger(), "Extract action halted");
-  future_.reset();
+  // Un servicio no se puede cancelar: se olvida la petición (la respuesta tardía se ignora)
+  if (future_) {
+    extract_client_->remove_pending_request(*future_);
+    future_.reset();
+  }
 }

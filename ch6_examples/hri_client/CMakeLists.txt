@@ -8,7 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_srvs REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(simple_hri_interfaces REQUIRED)
 
@@ -25,7 +25,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
   rclcpp::rclcpp
-  ${std_srvs_TARGETS}
+  rclcpp_action::rclcpp_action
   ${std_msgs_TARGETS}
   ${simple_hri_interfaces_TARGETS}
 )
@@ -50,7 +50,7 @@ ament_export_libraries(${PROJECT_NAME})
 ament_export_targets(export_${PROJECT_NAME})
 ament_export_dependencies(
   rclcpp
-  std_srvs
+  rclcpp_action
   std_msgs
   simple_hri_interfaces
 )

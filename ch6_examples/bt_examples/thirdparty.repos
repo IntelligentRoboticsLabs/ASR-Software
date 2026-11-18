@@ -1,13 +1,7 @@
+# Ver thirdparty.repos en la raíz del repositorio (README.md). BehaviorTree.CPP se
+# instala con rosdep (ros-jazzy-behaviortree-cpp).
 repositories:
-  BehaviorTree.CPP:
-    type: git
-    url: https://github.com/BehaviorTree/BehaviorTree.CPP.git
-    version: master
   simple_hri:
     type: git
     url: https://github.com/rodperex/simple_hri.git
     version: main
-  audio_common:
-    type: git
-    url: git@github.com:rodperex/audio_common.git
-    version: ros2

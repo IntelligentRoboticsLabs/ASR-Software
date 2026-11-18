@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #ifndef BT_EXAMPLES__LISTEN_TEXT_ACTION_HPP_
 #define BT_EXAMPLES__LISTEN_TEXT_ACTION_HPP_
 
 #include <behaviortree_cpp/action_node.h>
 #include <rclcpp/rclcpp.hpp>
-#include <std_srvs/srv/set_bool.hpp>
-#include <optional>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <simple_hri_interfaces/action/listen.hpp>
 
+#include <memory>
+#include <string>
+
+#include "hri_client/action_call.hpp"
+
+// ListenText: escucha a la persona y transcribe con la ACCIÓN /stt_action de simple_hri.
+// FAILURE si nadie empieza a hablar en 'max_wait' segundos. Si el nodo se detiene (halt),
+// se cancela el goal y el servidor deja de grabar.
 class ListenTextAction : public BT::StatefulActionNode
 {
 public:
-  using SetBool = std_srvs::srv::SetBool;
+  using Listen = simple_hri_interfaces::action::Listen;
 
   ListenTextAction(
     const std::string & name,
@@ -32,7 +41,9 @@ public:
   static BT::PortsList providedPorts()
   {
     return {
-      BT::OutputPort<std::string>("recognized_text", "Text recognized by ASR")
+      BT::InputPort<double>(
+        "max_wait", 10.0, "Seconds for the person to start speaking (0 = server default)"),
+      BT::OutputPort<std::string>("recognized_text", "Text recognized by STT")
     };
   }
 
@@ -42,9 +53,8 @@ public:
 
 private:
   rclcpp::Node::SharedPtr node_;
-  rclcpp::Client<SetBool>::SharedPtr stt_client_;
-  std::optional<rclcpp::Client<SetBool>::FutureAndRequestId> future_;
-  std::chrono::steady_clock::time_point start_time_;
+  rclcpp_action::Client<Listen>::SharedPtr stt_client_;
+  std::unique_ptr<hri_client::ActionCall<Listen>> call_;
 };
 
 #endif  // BT_EXAMPLES__LISTEN_TEXT_ACTION_HPP_

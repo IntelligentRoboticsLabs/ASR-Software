@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "bt_examples/bt_nodes/say_text_action.hpp"
 #include "bt_examples/text_utils.hpp"
 
@@ -23,7 +24,7 @@ SayTextAction::SayTextAction(
   if (!config.blackboard->get("node", node_)) {
     throw BT::RuntimeError("Missing required node in blackboard");
   }
-  tts_client_ = node_->create_client<Speech>("/tts_service");
+  tts_client_ = rclcpp_action::create_client<Say>(node_, "/tts_action");
 }
 
 std::string SayTextAction::formatText(const std::string & text)
@@ -43,74 +44,48 @@ BT::NodeStatus SayTextAction::onStart()
   // Formatear el texto (expandir variables del blackboard y formatear listas)
   text = formatText(text);
 
-  // Esperar a que el servidor esté disponible
-  if (!tts_client_->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_ERROR(node_->get_logger(), "TTS service not available");
+  // Esperar a que el servidor de la acción esté disponible
+  if (!tts_client_->wait_for_action_server(std::chrono::seconds(1))) {
+    RCLCPP_ERROR(node_->get_logger(), "TTS action (/tts_action) not available");
     return BT::NodeStatus::FAILURE;
   }
 
-  // Crear la petición
-  auto request = std::make_shared<Speech::Request>();
-  request->text = text;
-
   RCLCPP_INFO(node_->get_logger(), "Saying: '%s'", text.c_str());
 
-  // Estimar duración basada en el tamaño del texto
-  // Aproximadamente 10 caracteres por segundo (incluye pausas por puntuación)
-  int text_length = text.length();
-  int duration_ms = (text_length * 100) + 500; // +500ms de margen
-  tts_expected_duration_ = std::chrono::milliseconds(duration_ms);
-  
-  RCLCPP_DEBUG(node_->get_logger(), "Duración estimada de TTS: %d ms", duration_ms);
+  // Enviar el goal SIN BLOQUEAR: onRunning() consulta si ha terminado
+  Say::Goal goal;
+  goal.text = text;
+  call_ = std::make_unique<hri_client::ActionCall<Say>>(tts_client_, goal);
 
-  // Enviar petición asíncrona
-  future_ = tts_client_->async_send_request(request);
-  start_time_ = std::chrono::steady_clock::now();
-  service_responded_ = false;
-  
   return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus SayTextAction::onRunning()
 {
-  // Verificar si el servicio ha respondido (generación del audio)
-  if (!service_responded_ && future_ && future_->future.valid() && 
-      future_->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-    auto response = future_->future.get();
-    future_.reset();
-    
-    if (!response->success) {
-      RCLCPP_ERROR(node_->get_logger(), "TTS service failed: %s", response->debug.c_str());
-      return BT::NodeStatus::FAILURE;
-    }
-    
-    service_responded_ = true;
-    RCLCPP_DEBUG(node_->get_logger(), "TTS service responded, waiting for audio playback...");
+  auto finished = call_->poll();
+  if (!finished) {
+    return BT::NodeStatus::RUNNING;  // Todavía hablando
   }
-  
-  // Verificar si ha pasado el tiempo estimado de habla
-  auto elapsed = std::chrono::steady_clock::now() - start_time_;
-  
-  // Timeout de seguridad (respuesta del servicio + reproducción)
-  auto max_timeout = tts_expected_duration_ + std::chrono::seconds(5);
-  if (elapsed > max_timeout) {
-    RCLCPP_ERROR(node_->get_logger(), "TTS operation timeout");
-    return BT::NodeStatus::FAILURE;
-  }
-  
-  // Solo completar si el servicio respondió Y pasó el tiempo estimado
-  if (service_responded_ && elapsed >= tts_expected_duration_) {
-    RCLCPP_INFO(node_->get_logger(), "TTS completed (duration: %ld ms)", 
-                std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
+  call_.reset();
+
+  // El resultado llega cuando termina la reproducción: no hay que estimar la duración
+  const auto & result = finished->result;
+  if (finished->code == rclcpp_action::ResultCode::SUCCEEDED && result && result->success) {
+    RCLCPP_INFO(node_->get_logger(), "TTS completed");
     return BT::NodeStatus::SUCCESS;
   }
 
-  return BT::NodeStatus::RUNNING;
+  RCLCPP_ERROR(
+    node_->get_logger(), "TTS failed: %s", result ? result->message.c_str() : "goal rejected");
+  return BT::NodeStatus::FAILURE;
 }
 
 void SayTextAction::onHalted()
 {
+  // Si el árbol interrumpe este nodo, el robot deja de hablar
   RCLCPP_WARN(node_->get_logger(), "TTS action halted");
-  future_.reset();
-  service_responded_ = false;
+  if (call_) {
+    call_->cancel();
+    call_.reset();
+  }
 }

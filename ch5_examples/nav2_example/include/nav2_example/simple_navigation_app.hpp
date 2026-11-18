@@ -29,6 +29,7 @@ private:
 
   std::shared_ptr<NavigationClient> nav_client_;
   geometry_msgs::msg::PoseStamped target_pose_;
+  double goal_timeout_;
   rclcpp::TimerBase::SharedPtr timer_;
   bool navigation_ready_ = false;
   bool goal_sent_ = false;

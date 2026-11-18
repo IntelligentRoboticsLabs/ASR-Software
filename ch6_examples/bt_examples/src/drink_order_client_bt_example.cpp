@@ -63,13 +63,19 @@ int main(int argc, char** argv) {
   RCLCPP_INFO(node->get_logger(), "Drink order behavior tree (with HRIClient) started");
   RCLCPP_INFO(node->get_logger(), "The robot will ask what you want to drink, listen, and repeat it back");
   
+  // Executor del nodo (los futures de acciones y servicios se completan al hacer spin)
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+
   // Bucle principal: tick del árbol a 10 Hz
   rclcpp::Rate rate(10);
   BT::NodeStatus status = BT::NodeStatus::IDLE;
   
   while (rclcpp::ok()) {
-    // Procesar callbacks de ROS
-    rclcpp::spin_some(node);
+    // Procesar TODOS los callbacks de ROS pendientes. spin_some() ejecuta un solo evento
+    // por cliente de acción en cada llamada: con el feedback de simple_hri a 10 Hz, la
+    // respuesta, el resultado o la cancelación de un goal llegarían con retraso
+    executor.spin_all(std::chrono::milliseconds(10));
     
     // Evaluar árbol
     status = tree.tickOnce();

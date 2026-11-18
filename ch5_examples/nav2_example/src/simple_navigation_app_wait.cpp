@@ -23,7 +23,7 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
     //    - No podemos usar shared_from_this() en el constructor
     nav_client_ = std::make_shared<NavigationClient>(this);
     
-    RCLCPP_INFO(get_logger(), "=== Aplicación de navegación BLOQUEANTE iniciada ===");;
+    RCLCPP_INFO(get_logger(), "=== Aplicación de navegación BLOQUEANTE iniciada ===");
     
     // 2. FASE 1: Verificar disponibilidad de Nav2
     RCLCPP_INFO(get_logger(), "Esperando a que Nav2 esté disponible...");
@@ -56,13 +56,14 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
                   "\n[Waypoint %zu/%zu] Navegando a (%.2f, %.2f, %.2f rad)...",
                   i + 1, waypoints.size(), x, y, yaw);
       
-      // Enviar objetivo (se cancela automáticamente cualquier goal anterior)
-      nav_client_->start_navigation(goal);
+      // Enviar objetivo con un tiempo máximo (tiempo del robot) de 300 s
+      // (si hubiera un goal anterior en curso, se cancela)
+      nav_client_->start_navigation(goal, 300.0);
       
       // CLAVE: Esperar BLOQUEANDO hasta que termine
       // wait_for_navigation_result() internamente procesa callbacks y verifica estado
       // Retorna: true si éxito, false si falló/timeout/cancelado
-      bool success = nav_client_->wait_for_navigation_result(std::chrono::seconds(300));
+      bool success = nav_client_->wait_for_navigation_result();
       
       // Procesar resultado
       if (success) {
@@ -71,8 +72,8 @@ SimpleNavigationAppWait::SimpleNavigationAppWait()
                     i + 1);
       } else {
         RCLCPP_ERROR(get_logger(), 
-                     "✗ Waypoint %zu FALLÓ (abortado, timeout o cancelado)",
-                     i + 1);
+                     "✗ Waypoint %zu FALLÓ (%s)",
+                     i + 1, to_string(nav_client_->get_navigation_state()));
         RCLCPP_ERROR(get_logger(), "Abortando secuencia de navegación");
         return;  // Salir si falla algún waypoint
       }
