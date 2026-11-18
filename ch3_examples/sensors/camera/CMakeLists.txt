@@ -13,6 +13,9 @@ find_package(vision_msgs REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(message_filters REQUIRED)
+# Rama lyrical: el VTK de Ubuntu 26.04 (lo carga PCL) usa el target JsonCpp::JsonCpp sin
+# buscarlo; la configuración de jsoncpp lo define
+find_package(jsoncpp CONFIG QUIET)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(image_geometry REQUIRED)
@@ -51,6 +54,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   ${OpenCV_LIBRARIES}
   ${PCL_LIBRARIES}
   message_filters::message_filters
+  pcl_conversions::pcl_conversions  # Rama lyrical: pcl_conversions solo exporta su target
   image_geometry::image_geometry
   tf2::tf2
   tf2_ros::tf2_ros
