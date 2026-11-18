@@ -18,15 +18,23 @@ set(dependencies
   kobuki_ros_interfaces
 )
 
+# Targets de CMake de las dependencias (ament_target_dependencies no existe desde Lyrical)
+set(dependency_targets
+  rclcpp::rclcpp
+  ${sensor_msgs_TARGETS}
+  ${geometry_msgs_TARGETS}
+  ${kobuki_ros_interfaces_TARGETS}
+)
+
 include_directories(include)
 
 add_library(${PROJECT_NAME} SHARED
   src/kobuki/FakeBumper.cpp
 )
-ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+target_link_libraries(${PROJECT_NAME} ${dependency_targets})
 
 add_executable(fake_bumer_node src/fake_bumper_node.cpp)
-ament_target_dependencies(fake_bumer_node ${dependencies})
+target_link_libraries(fake_bumer_node ${dependency_targets})
 target_link_libraries(fake_bumer_node ${PROJECT_NAME})
 
 install(TARGETS

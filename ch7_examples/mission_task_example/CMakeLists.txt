@@ -25,33 +25,44 @@ set(dependencies
   ament_index_cpp
 )
 
+# Targets de CMake de las dependencias (ament_target_dependencies no existe desde Lyrical)
+set(dependency_targets
+  rclcpp::rclcpp
+  rclcpp_lifecycle::rclcpp_lifecycle
+  ${lifecycle_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  rclcpp_components::component
+  behaviortree_cpp::behaviortree_cpp
+  ament_index_cpp::ament_index_cpp
+)
+
 include_directories(include)
 
 # TaskLifecycleNode library
 add_library(task_lifecycle_node SHARED
   src/task_lifecycle_node.cpp
 )
-ament_target_dependencies(task_lifecycle_node ${dependencies})
+target_link_libraries(task_lifecycle_node ${dependency_targets})
 
 # BTTaskNode library (generic BT task node)
 add_library(bt_task_node SHARED
   src/bt_task_node.cpp
 )
-ament_target_dependencies(bt_task_node ${dependencies})
+target_link_libraries(bt_task_node ${dependency_targets})
 target_link_libraries(bt_task_node task_lifecycle_node)
 
 # MissionExecutor library
 add_library(mission_executor SHARED
   src/mission_executor.cpp
 )
-ament_target_dependencies(mission_executor ${dependencies})
+target_link_libraries(mission_executor ${dependency_targets})
 target_link_libraries(mission_executor task_lifecycle_node)
 
 # Mission FSM executable
 add_executable(mission_fsm_example
   src/mission_fsm_example.cpp
 )
-ament_target_dependencies(mission_fsm_example ${dependencies})
+target_link_libraries(mission_fsm_example ${dependency_targets})
 target_link_libraries(mission_fsm_example mission_executor task_lifecycle_node bt_task_node)
 
 # Install
