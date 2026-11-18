@@ -14,9 +14,9 @@
 
 #include <memory>
 
-#include "tf2/LinearMath/Transform.h"
-#include "tf2/transform_datatypes.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include "tf2/LinearMath/Transform.hpp"
+#include "tf2/transform_datatypes.hpp"
+#include "tf2_ros/transform_broadcaster.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
@@ -26,8 +26,8 @@
 #include "vision_msgs/msg/detection2_d_array.hpp"
 #include "vision_msgs/msg/detection3_d_array.hpp"
 
-#include "message_filters/subscriber.h"
-#include "message_filters/sync_policies/approximate_time.h"
+#include "message_filters/subscriber.hpp"
+#include "message_filters/sync_policies/approximate_time.hpp"
 #include "image_geometry/pinhole_camera_model.hpp"
 #include "cv_bridge/cv_bridge.hpp"
 #include "depth_image_proc/depth_traits.hpp"
